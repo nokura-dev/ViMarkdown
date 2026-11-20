@@ -41,9 +41,7 @@ GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。公
 | 環境 | 公開パッケージの配置先 |
 |---|---|
 | Apple Silicon搭載Mac | `macos/ViMarkdown-osx-arm64.zip` |
-| Intel搭載Mac | `macos/ViMarkdown-osx-x64.zip` |
 | Windows（x64） | `windows/ViMarkdown-win-x64.zip` |
-| Windows（ARM64） | `windows/ViMarkdown-win-arm64.zip` |
 
 **macOS:** ZIPを展開し、`ViMarkdown.app` をApplicationsフォルダへコピーして起動します。
 
@@ -446,27 +444,25 @@ PNGの出力先には書き込み可能なパスを指定してください。
 
 ### ローカルでの生成と管理
 
-.NET 10 SDKがあるビルド環境で、macOSは `sh scripts/package-macos.sh osx-arm64`（Intel向けは `osx-x64`）、WindowsはPowerShellから `./scripts/package.ps1 -Runtime win-x64`（ARM向けは `win-arm64`）を実行します。`artifacts/` に自己完結型ZIPを生成します。利用者の.NETインストールは不要です。同じ出力先がある場合は停止します。
+.NET 10 SDKがあるビルド環境で、macOSは `sh scripts/package-macos.sh osx-arm64`、WindowsはPowerShellから `./scripts/package.ps1 -Runtime win-x64` を実行します。`artifacts/` に自己完結型ZIPを生成します。利用者の.NETインストールは不要です。同じ出力先がある場合は停止します。
 
-プロジェクト内では、引き続き `artifacts/` 配下で各CPU向けの出力フォルダとZIPを管理します。各対象をビルドした場合の構成は次のとおりです。
+標準のビルド・GitHub掲載対象は **macOS ARM64（Apple Silicon）とWindows x64の2種類**です。Intel Mac（`osx-x64`）とWindows ARM64（`win-arm64`）は、明示的な指定がある場合のみ対象に含めます。
+
+プロジェクト内では、引き続き `artifacts/` 配下で出力フォルダとZIPを管理します。標準対象をビルドした場合の構成は次のとおりです。
 
 ```text
 artifacts/
 ├── osx-arm64/
 ├── osx-arm64.zip
-├── osx-x64/
-├── osx-x64.zip
 ├── win-x64/
-├── win-x64.zip
-├── win-arm64/
-└── win-arm64.zip
+└── win-x64.zip
 ```
 
 macOSのパッケージには `src/ViMarkdown/Assets/ViMarkdown.icns` を組み込みます。確認用に別の出力先を使う場合は `sh scripts/package-macos.sh osx-arm64 output/icon-preview-fixed` と指定できます。生成された `output/icon-preview-fixed/ViMarkdown.app` を起動してください。既存の古い `.app` をコピーすると、現在のDB形式に対応していない場合があるため、最新ソースから再ビルドします。
 macOSではZIPを展開し `ViMarkdown.app` をApplicationsへコピーして起動します。WindowsではZIPを展開し `Install.ps1` をPowerShellで実行すると、ユーザーの `LocalAppData/Programs/ViMarkdown` にコピーしスタートメニューへ登録します。展開先の `publish/ViMarkdown.exe` から直接起動も可能です。
 macOSパッケージはローカルのアドホック署名のみで、Developer ID署名・公証、Windowsのコード署名は未実施です。一般公開向けの署名は別途必要です。
 Mermaidの実描画には従来どおり別途Node.js・Mermaid CLI・Chromeが必要です。配布物には同梱しません。CLIは `VIMARKDOWN_MERMAID_CLI` で指定します。依存の導入手順は[フローチャート（Mermaid）](#フローチャートmermaid)を参照してください。
-GitHub Actionsの `Packages` を手動実行すると、macOS・Windowsの各CPU向けにチェックとパッケージ生成を実行します。実機のインストール・起動と対象アプリでの確認手順は [docs/step8-validation.md](docs/step8-validation.md) を参照してください。
+GitHub Actionsの `Packages` を手動実行すると、macOS ARM64・Windows x64向けにチェックとパッケージ生成を実行します。実機のインストール・起動と対象アプリでの確認手順は [docs/step8-validation.md](docs/step8-validation.md) を参照してください。
 
 ### GitHubへの掲載構成
 
@@ -476,11 +472,9 @@ GitHub Actionsの `Packages` を手動実行すると、macOS・Windowsの各CPU
 ViMarkdown/                      # 公開用リポジトリのルート
 ├── README.md
 ├── macos/
-│   ├── ViMarkdown-osx-arm64.zip
-│   └── ViMarkdown-osx-x64.zip
+│   └── ViMarkdown-osx-arm64.zip
 └── windows/
-    ├── ViMarkdown-win-x64.zip
-    └── ViMarkdown-win-arm64.zip
+    └── ViMarkdown-win-x64.zip
 ```
 
 例えば `artifacts/osx-arm64.zip` は、公開用フォルダの `macos/ViMarkdown-osx-arm64.zip` にコピーします。プロジェクト側の `artifacts/` の配置やファイル名は変更しません。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。
@@ -491,13 +485,13 @@ ViMarkdown/                      # 公開用リポジトリのルート
 
 ### 公開パッケージの検証状況
 
-2026年11月20日、macOS ARM64環境の.NET SDK 10.0.402で最新ソースから4種類の自己完結型パッケージを生成しました。配布前の自動チェックは `--all` で全33スイート・2,298件成功しました。この結果はmacOS ARM64環境での結果です。
+2026年11月20日、macOS ARM64環境の.NET SDK 10.0.402で最新ソースから自己完結型パッケージを生成しました。現在の標準配布対象は以下の2種類です。配布前の自動チェックは `--all` で全33スイート・2,298件成功しました。この結果はmacOS ARM64環境での結果です。
 
 | 対象 | ビルド | 起動・導入の確認 |
 |---|---|---|
 | macOS ARM64 | 成功 | アドホック署名検証、一時DBを指定した実行ファイルの5秒間の稼働・DB作成を確認 |
-| macOS x64 | クロスビルド成功 | アドホック署名検証済み。Intel Macでの起動は未確認 |
-| Windows x64 | クロスビルド成功 | Windows実機での導入・起動は未確認 |
-| Windows ARM64 | クロスビルド成功 | Windows ARM実機での導入・起動は未確認 |
+| Windows x64 | クロスビルド成功 | ユーザーによるWindows実機での起動確認済み |
 
 macOS ARM64もApplicationsへの導入と画面操作による確認は未実施です。Developer ID署名・公証とWindowsコード署名も未実施です。Mermaidの実描画用依存は同梱していません。
+
+Intel Mac用・Windows ARM64用のZIPはGitHubの現行ブランチから削除し、標準のビルド・掲載対象から除外しています。
