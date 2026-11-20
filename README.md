@@ -380,6 +380,7 @@ OS/IMEによってキーの消費動作が異なるため、変換中のEscと�
 
 ## 実装範囲
 
+- Windows版のUIと本文はMeiryo UI、インラインコードとコードブロックはConsolasを使用します。macOS版はシステムフォントを維持し、リッチ表示のコードには従来どおりMenlo等の等幅フォントを使用します。
 - 挿入モードはLight Plus配色のMarkdownシンタックスハイライトを使用します。見出しは青、強調・取り消し線は紫、リスト・タスク・表の記号は緑、引用は青灰色、リンク先は灰色です。コードは茶色と薄い背景色で表示し、言語別の色分けは行いません。記号と文字サイズを保持し、本文やUndo履歴は変更しません。コードフェンスの編集やUndo後も後続行の色を更新します。
 - 同じAvaloniaEdit `TextDocument` を全モードで共有。表示切り替えはページを書き換えません。
 - 挿入モードはAvaloniaEdit。IMEの未確定文字をカーソル位置に下線付きで逐次表示し、確定時に本文へ挿入します。未確定文字は保存内容やUndo履歴に含めません。
@@ -459,6 +460,7 @@ artifacts/
 ```
 
 macOSのパッケージには `src/ViMarkdown/Assets/ViMarkdown.icns` を組み込みます。確認用に別の出力先を使う場合は `sh scripts/package-macos.sh osx-arm64 output/icon-preview-fixed` と指定できます。生成された `output/icon-preview-fixed/ViMarkdown.app` を起動してください。既存の古い `.app` をコピーすると、現在のDB形式に対応していない場合があるため、最新ソースから再ビルドします。
+Windowsの実行ファイルには `src/ViMarkdown/Assets/ViMarkdown.ico` を `ApplicationIcon` 設定で埋め込みます。
 macOSではZIPを展開し `ViMarkdown.app` をApplicationsへコピーして起動します。WindowsではZIPを展開し `Install.ps1` をPowerShellで実行すると、ユーザーの `LocalAppData/Programs/ViMarkdown` にコピーしスタートメニューへ登録します。展開先の `publish/ViMarkdown.exe` から直接起動も可能です。
 macOSパッケージはローカルのアドホック署名のみで、Developer ID署名・公証、Windowsのコード署名は未実施です。一般公開向けの署名は別途必要です。
 Mermaidの実描画には従来どおり別途Node.js・Mermaid CLI・Chromeが必要です。配布物には同梱しません。CLIは `VIMARKDOWN_MERMAID_CLI` で指定します。依存の導入手順は[フローチャート（Mermaid）](#フローチャートmermaid)を参照してください。
@@ -485,12 +487,12 @@ ViMarkdown/                      # 公開用リポジトリのルート
 
 ### 公開パッケージの検証状況
 
-2026年11月20日、macOS ARM64環境の.NET SDK 10.0.402で最新ソースから自己完結型パッケージを生成しました。現在の標準配布対象は以下の2種類です。配布前の自動チェックは `--all` で全33スイート・2,298件成功しました。この結果はmacOS ARM64環境での結果です。
+2026年11月20日、macOS ARM64環境の.NET SDK 10.0.402で最新ソースから自己完結型パッケージを生成しました。現在の標準配布対象は以下の2種類です。配布前の自動チェックは `--all` で全33スイート・2,363件成功しました。この結果はmacOS ARM64環境での結果です。
 
 | 対象 | ビルド | 起動・導入の確認 |
 |---|---|---|
 | macOS ARM64 | 成功 | アドホック署名検証、一時DBを指定した実行ファイルの5秒間の稼働・DB作成を確認 |
-| Windows x64 | クロスビルド成功 | ユーザーによるWindows実機での起動確認済み |
+| Windows x64 | クロスビルド成功 | 実行ファイルへのアイコン埋め込みを確認。今回のビルドはWindows実機での起動・導入未確認（以前の配布版はユーザー確認済み） |
 
 macOS ARM64もApplicationsへの導入と画面操作による確認は未実施です。Developer ID署名・公証とWindowsコード署名も未実施です。Mermaidの実描画用依存は同梱していません。
 
