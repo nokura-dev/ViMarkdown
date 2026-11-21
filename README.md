@@ -36,21 +36,16 @@
 
 作成済みの自己完結型ZIPを使う場合、利用者の環境に.NETをインストールする必要はありません。OSとCPUに合うパッケージを選んでください。
 
-GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。正式版はルート直下の `macos/`・`windows/`、開発版は各OSフォルダ内の `branch/` にZIPを配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
+GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。各GitブランチでビルドしたZIPを、そのブランチの `macos/`・`windows/` 直下へ配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
 
 このdevelopブランチのD2対応開発版は **1.1.0-dev.1** です。
 
 | 開発版の対象 | ダウンロード |
 |---|---|
-| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-dev.1-osx-arm64.zip](macos/branch/ViMarkdown-1.1.0-dev.1-osx-arm64.zip) |
-| Windows x64 | [ViMarkdown-1.1.0-dev.1-win-x64.zip](windows/branch/ViMarkdown-1.1.0-dev.1-win-x64.zip) |
+| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-dev.1-osx-arm64.zip](macos/ViMarkdown-1.1.0-dev.1-osx-arm64.zip) |
+| Windows x64 | [ViMarkdown-1.1.0-dev.1-win-x64.zip](windows/ViMarkdown-1.1.0-dev.1-win-x64.zip) |
 
-各branchフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。以下のOSフォルダ直下のZIPは、従来の正式版1.0.1です。
-
-| 環境 | 公開パッケージの配置先 |
-|---|---|
-| Apple Silicon搭載Mac | `macos/ViMarkdown-osx-arm64.zip` |
-| Windows（x64） | `windows/ViMarkdown-win-x64.zip` |
+各OSフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。正式版は[mainブランチ](https://github.com/nokura-dev/ViMarkdown/tree/main)から取得してください。このdevelopブランチには開発版のみ配置します。
 
 **macOS:** ZIPを展開し、`ViMarkdown.app` をApplicationsフォルダへコピーして起動します。
 
@@ -505,9 +500,9 @@ GitHub Actionsの `Packages` を手動実行すると、macOS ARM64・Windows x6
 
 ### GitHubへの掲載構成
 
-ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は1.1に向けた開発用ブランチです。正式版ZIPはOS別フォルダ直下に置き、開発版を配布する場合は各OSフォルダ内の `branch/` に置きます。
+ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は1.1に向けた開発用ブランチです。各ブランチでビルドしたZIPだけを、そのブランチのOS別フォルダ直下に置きます。developにはmainの正式版ZIPを混在させず、branchサブフォルダも作りません。
 
-開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。初回は1.1.0-dev.1、次回は1.1.0-dev.2です。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。
+開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。初回は1.1.0-dev.1、次回は1.1.0-dev.2です。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。今回の配置変更はユーザー指定により1.1.0-dev.1のまま、再ビルドせず行っています。
 
 ```text
 ViMarkdown/                      # 公開用リポジトリのルート
@@ -519,14 +514,16 @@ ViMarkdown/                      # 公開用リポジトリのルート
 ├── docs/
 ├── tools/
 ├── macos/
-│   ├── ViMarkdown-osx-arm64.zip
-│   └── branch/                  # 開発版の配布時に追加
+│   ├── ViMarkdown-1.1.0-dev.1-osx-arm64.zip
+│   ├── SHA256SUMS
+│   └── BUILD-INFO.txt
 └── windows/
-    ├── ViMarkdown-win-x64.zip
-    └── branch/                  # 開発版の配布時に追加
+    ├── ViMarkdown-1.1.0-dev.1-win-x64.zip
+    ├── SHA256SUMS
+    └── BUILD-INFO.txt
 ```
 
-例えば正式版の `build/osx-arm64.zip` は、作業ルートの `macos/ViMarkdown-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。開発版にはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。開発版をmainにも掲載する場合は配布物と説明だけを更新し、正式版ソースと直下のZIPは保持します。
+例えばdevelopの `build/osx-arm64.zip` は、`macos/ViMarkdown-1.1.0-dev.1-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。開発版にはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。mainの正式版は別ブランチで保持します。
 
 現在のパッケージ生成スクリプトが行うのはローカルのZIP生成までです。配布先へのコピー・リネームとGitHubへの反映は別途行います。テストは明示的に依頼された場合に実行し、CIで実行する場合は `--all` を使用します。
 
