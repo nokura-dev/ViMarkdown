@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="../../docs/markdown-features-sample.md" Link="Fixtures/markdown-features-sample.md" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="Avalonia.Headless" Version="11.3.23" />
+    <ProjectReference Include="../../src/ViMarkdown/ViMarkdown.csproj" />
+  </ItemGroup>
+  <Target Name="WriteCheckBuildInputs" AfterTargets="Build">
+    <ItemGroup>
+      <_CheckBuildInput Include="../../src/**/*;../../tests/**/*;../../docs/markdown-features-sample.md;../../*.*"
+                        Exclude="../../**/bin/**;../../**/obj/**;../../**/node_modules/**;../../**/.git/**;../../**/.cache/**;../../**/.DS_Store" />
+    </ItemGroup>
+    <RemoveDuplicates Inputs="@(_CheckBuildInput)">
+      <Output TaskParameter="Filtered" ItemName="_DistinctCheckBuildInput" />
+    </RemoveDuplicates>
+    <GetFileHash Files="@(_DistinctCheckBuildInput)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_HashedCheckBuildInput" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(TargetDir)check-build-inputs.txt"
+                      Lines="@(_HashedCheckBuildInput->'%(FullPath)|%(FileHash)')"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+  </Target>
+</Project>

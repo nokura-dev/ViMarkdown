@@ -550,22 +550,30 @@ GitHub Actionsの `Packages` を手動実行すると、macOS ARM64・Windows x6
 
 ### GitHubへの掲載構成
 
-公開用の作業フォルダをプロジェクトとは別に用意し、`https://github.com/nokura-dev/ViMarkdown.git` に対応するGitリポジトリとして管理します。公開用リポジトリのルート直下にOS別フォルダを置き、ローカルの `build/` からZIPをコピーして、次の名前で掲載します。
+ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は1.1に向けた開発用ブランチです。正式版ZIPはOS別フォルダ直下に置き、開発版を配布する場合は各OSフォルダ内の `branch/` に置きます。
 
 ```text
 ViMarkdown/                      # 公開用リポジトリのルート
 ├── README.md
+├── SHA256SUMS
+├── src/
+├── tests/
+├── scripts/
+├── docs/
+├── tools/
 ├── macos/
-│   └── ViMarkdown-osx-arm64.zip
+│   ├── ViMarkdown-osx-arm64.zip
+│   └── branch/                  # 開発版の配布時に追加
 └── windows/
-    └── ViMarkdown-win-x64.zip
+    ├── ViMarkdown-win-x64.zip
+    └── branch/                  # 開発版の配布時に追加
 ```
 
-例えば `build/osx-arm64.zip` は、公開用フォルダの `macos/ViMarkdown-osx-arm64.zip` にコピーします。プロジェクト側の `build/` の配置やファイル名は変更しません。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。
+例えば正式版の `build/osx-arm64.zip` は、作業ルートの `macos/ViMarkdown-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。開発版にはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。開発版をmainにも掲載する場合は配布物と説明だけを更新し、正式版ソースと直下のZIPは保持します。
 
-現在のパッケージ生成スクリプトが行うのはローカルのZIP生成までです。公開用フォルダへのコピー・リネームとGitHubへの反映は別途行います。配布前には[開発・検証](#開発検証)の `--all` で全スイートを実行し、掲載する対象OS・CPUでインストールと起動を確認してください。
+現在のパッケージ生成スクリプトが行うのはローカルのZIP生成までです。配布先へのコピー・リネームとGitHubへの反映は別途行います。テストは明示的に依頼された場合に実行し、CIで実行する場合は `--all` を使用します。
 
-この公開用構成は配布ZIPとREADMEを掲載する想定です。本README内のソースコード・開発資料への相対リンクやソースからの起動手順は、開発用プロジェクトを参照するためのものです。
+`build/`、ローカルの出力・キャッシュ・個人データはGit管理対象外です。ローカル専用の作業指示と変更履歴も公開しません。公開版のソースは `v1.0.1` などのタグで参照します。1.0.1のソース掲載時には既存ZIPを保持し、バージョン更新・再ビルド・テストは行いません。
 
 ### 公開パッケージの検証状況
 

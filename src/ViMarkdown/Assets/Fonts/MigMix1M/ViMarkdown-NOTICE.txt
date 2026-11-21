@@ -1,0 +1,72 @@
+MigMix 1M 同梱資料
+=================
+
+取得日: 2026-11-20
+バージョン: 20200307（公式配布ZIPの名称による）
+配布元: https://itouhiro.github.io/mixfont-mplus-ipa/migmix/
+取得したZIP:
+https://github.com/itouhiro/mixfont-mplus-ipa/releases/download/v2020.0307/migmix-1m-20200307.zip
+ZIPのSHA-256:
+5b662021765d5a091cdbe6b09dd464710fbc42fb20c544d28795b3e0580a216e
+
+このディレクトリには、公式ZIP内の全7ファイルを元の相対配置のまま
+収録しています。TTFおよび配布元の文書は、内容・名称とも変更していません。
+SHA256SUMSには、公式ZIPから取り出した7ファイルのSHA-256を記載しています。
+
+フォント:
+  migmix-1m-regular.ttf
+  migmix-1m-bold.ttf
+
+ライセンス全文:
+  ipag00303/IPA_Font_License_Agreement_v1.0.txt
+
+配布元の著作権表示・説明:
+  migmix-README.txt
+  ipag00303/Readme_ipag00303.txt
+  mplus-TESTFLIGHT-063a/README_E
+  mplus-TESTFLIGHT-063a/README_J
+
+フォントはIPAフォントライセンスv1.0に従って提供されます。
+アプリ本体のライセンスとは区別して扱ってください。
+再配布時は、TTFだけでなく、このディレクトリ内のライセンスと説明文書も
+配布パッケージに含めてください。
+
+加工用ファイルの入手先
+----------------------
+MigMix配布ページが案内しているFontForgeの追加ファイル（*.sfd等）:
+https://github.com/itouhiro/mixfont-mplus-ipa/tree/main/mplus_outline_fonts/mig.d/sfd.d
+
+配布元のREADMEに記載された旧OSDNのURLは改変せず保存しています。
+現在の入手先は上記GitHubと公式配布ページを参照してください。
+
+元のIPAゴシックへの置き換え
+--------------------------
+1. IPAフォントの公式配布サイトから、IPAゴシック Ver.003.03を取得します。
+   https://moji.or.jp/ipafont/
+   MigMix配布元が示している旧URL: https://ossipedia.ipa.go.jp/ipafont/
+2. 配布物を展開し、ipag.ttfと付属のライセンス文書を用意します。
+3. ViMarkdownのソースを使って置き換える場合は、同梱するフォントを
+   MigMix 1MのTTFからipag.ttfへ切り替え、リソース登録とフォント指定を
+   IPAゴシックの実際のファイル名・ファミリー名に合わせて変更します。
+   ファイル名だけをMigMixの名前に変えて置き換えないでください。
+   Bold専用ファイルの参照も外し、元のIPAゴシックを使う指定に変更します。
+4. 使用するフォントのライセンス・説明文書を配布物に含め、対象OS向けに
+   再ビルドします。フォントの変更によって行高・文字幅が変わるため、
+   表示とレイアウトを確認してください。
+
+アプリへの組み込みと置き換え時の参照箇所
+--------------------------------------
+TTFはViMarkdownアセンブリのAvaloniaリソースとして埋め込んでいます。
+配布物のこのディレクトリにはライセンスと案内文書を収録し、
+元のTTFは上記の公式ZIPまたはソースの同ディレクトリから取得できます。
+SHA256SUMSはソースに収録した元の配布ファイルの照合用です。
+
+リソース登録: src/ViMarkdown/ViMarkdown.csproj
+共通フォント指定: src/ViMarkdown/Typography.cs の BodyFont
+
+IPAゴシックへ置き換えるには、ソースのこのディレクトリにipag.ttfを配置し、
+MigMixの2つのTTFをリソース登録対象から除外してください。
+BodyFontの指定を次のように変更して再ビルドします。
+  avares://ViMarkdown/Assets/Fonts/MigMix1M#IPAGothic
+EditorFont・JapaneseUiFontはBodyFontを参照するため、一緒に切り替わります。
+元のIPAゴシックにはBold専用TTFがないため、太字は描画側の合成になります。
