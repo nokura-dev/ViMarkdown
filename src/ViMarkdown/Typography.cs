@@ -4,7 +4,12 @@ namespace ViMarkdown;
 
 public static class Typography
 {
-    public static readonly FontFamily BodyFont = new("avares://ViMarkdown/Assets/Fonts/MigMix1M#MigMix 1M");
+    public static readonly FontFamily BodyFont = LoadBodyFont();
+    private static FontFamily LoadBodyFont()
+    {
+        FontManager.Current.AddFontCollection(new LocalFontCollection());
+        return new FontFamily(LocalFontCollection.CollectionKey.AbsoluteUri + "#MigMix 1M");
+    }
     public static readonly FontFamily EditorFont = BodyFont;
     public static readonly Typeface EditorTypeface = new(EditorFont);
     public static readonly FontFamily JapaneseUiFont = BodyFont;

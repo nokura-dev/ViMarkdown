@@ -125,6 +125,7 @@ public sealed partial class MainWindow
             System.Globalization.DateTimeStyles.None, out _);
         var candidate = dated ? lines.ElementAtOrDefault(1) ?? "" : lines[0];
         var name = candidate.Trim().TrimStart('#').Trim();
+        if (dated && string.IsNullOrWhiteSpace(name)) name = first;
         if (string.IsNullOrWhiteSpace(name) || name == page.Name) return false;
         _store.Rename(id, name);
         Title = FormatPageWindowTitle(name);

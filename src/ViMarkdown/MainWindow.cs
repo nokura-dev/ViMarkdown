@@ -274,6 +274,6 @@ Console.WriteLine("Hello, Markdown!");
 | 表 | 挿入モードでセルの原文を編集 |
 | 画像 | Ctrl+V / Cmd+V |
 
-画像はSQLiteに保存されます。Mermaidは後続ステップで実装します。
+画像はSQLiteに保存されます。D2フェンスの図は同梱CLIで描画します。
 """;
 }

@@ -22,7 +22,7 @@ internal static class EditorViewChecks
         check(window.GetVisualDescendants().OfType<TemplatedControl>().Where(c => c is Button or TextBox or ComboBox)
                 .All(c => c.FontFamily.Equals(Typography.BodyFont)),
             "ボタン・検索欄・選択欄は両OS共通フォントを使用する");
-        var licenseDirectory = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "MigMix1M");
+        var licenseDirectory = Path.Combine(RuntimeAssets.DataDirectory, "Licenses", "MigMix1M");
         check(File.Exists(Path.Combine(licenseDirectory, "ipag00303", "IPA_Font_License_Agreement_v1.0.txt")) &&
             File.Exists(Path.Combine(licenseDirectory, "ViMarkdown-NOTICE.txt")) &&
             File.Exists(Path.Combine(licenseDirectory, "migmix-README.txt")),

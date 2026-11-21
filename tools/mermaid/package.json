@@ -1,8 +1,0 @@
-{
-  "name": "vimarkdown-mermaid",
-  "private": true,
-  "version": "1.0.0",
-  "dependencies": {
-    "@mermaid-js/mermaid-cli": "12.2.0"
-  }
-}

@@ -22,16 +22,16 @@ internal static class MediaChecks
         check(layout.SelectionBounds(offset, offset + 3).Count > 0, "表内の選択範囲");
         using var narrow = new RichTextLayout(units, 180);
         check(narrow.Layout.Height >= layout.Layout.Height, "表を狭めるとセルを折り返して高さを確保");
-        foreach (var mermaid in new[] { false, true })
+        foreach (var d2 in new[] { false, true })
         {
             using var tallBitmap = new RenderTargetBitmap(new PixelSize(160, 280));
             using var stream = new MemoryStream();
             tallBitmap.Save(stream);
             var tallPng = stream.ToArray();
-            var media = mermaid ? "```mermaid\nflowchart TD\n A --> B\n```" : "![画像](asset://test)";
+            var media = d2 ? "```d2\ndirection: down\n A -> B\n```" : "![画像](asset://test)";
             var page = "前文\n\n" + media + "\n\n後文";
             using var mediaLayout = new RichTextLayout(Projection.Build(page), 400, _ => tallPng,
-                mermaidResolver: _ => new MermaidResult(tallPng, null));
+                d2Resolver: _ => new D2Result(tallPng, null));
             var imageStart = page.IndexOf(media, StringComparison.Ordinal);
             var after = page.IndexOf("後文", StringComparison.Ordinal);
             var position = 0;
@@ -43,7 +43,7 @@ internal static class MediaChecks
                 if (next == position) break;
                 position = next;
             }
-            check(visitedImage && position >= after, $"{(mermaid ? "図" : "画像")}の行頭で停止せずjで後文へ移動");
+            check(visitedImage && position >= after, $"{(d2 ? "図" : "画像")}の行頭で停止せずjで後文へ移動");
             position = after;
             for (var i = 0; i < 30 && position > 0; i++)
             {
@@ -51,7 +51,7 @@ internal static class MediaChecks
                 if (next == position) break;
                 position = next;
             }
-            check(position == 0, $"{(mermaid ? "図" : "画像")}を越えてkで前文へ移動");
+            check(position == 0, $"{(d2 ? "図" : "画像")}を越えてkで前文へ移動");
         }
         var path = Path.Combine(Path.GetTempPath(), "markdown-media-" + Guid.NewGuid() + ".db");
         string url;

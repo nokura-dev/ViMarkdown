@@ -56,7 +56,7 @@ internal static class AffectedChecks
                     if (inputs.GetValueOrDefault(path) != previous.Files.GetValueOrDefault(path)) Add(suite, "変更: " + path);
             }
         }
-        foreach (var required in options.RequiredSuites) Add(required, "描画または実Mermaid検証の明示指定");
+        foreach (var required in options.RequiredSuites) Add(required, "描画または実D2検証の明示指定");
         return new(selected);
     }
 

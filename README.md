@@ -14,7 +14,7 @@
 - **ページをまたいで検索** — 表示中のページ、選択中のノート、全てのノートから検索し、結果から該当行へ移動できます。
 - **自動保存とローカル保存** — 入力後500msで本文を保存し、最後に開いたページを次回起動時に復元します。貼り付け画像もDB内で保持するため、元の画像ファイルに依存しません。
 - **共有しやすい形式へ出力** — ページ単位・ノート単位でMarkdownまたはDOCXへ出力できます。Markdownは画像を添付フォルダへ、DOCXは画像をファイル内へまとめます。
-- **Mermaidの図を表示** — フローチャートなどをコードで記述し、リッチ表示や出力に利用できます。この機能には別途Node.js・Mermaid CLI・Chromeの準備が必要です。
+- **D2の図を表示** — 専用フェンスの図を同梱CLIで描画し、リッチ表示・Markdown/DOCX出力に利用できます。
 
 ## 目次
 
@@ -25,7 +25,7 @@
 - [操作・キーマップ](#操作)
 - [表・画像](#表画像)
 - [Markdown出力](#markdown出力) / [DOCX出力](#docx出力)
-- [フローチャート（Mermaid）](#フローチャートmermaid)
+- [図の描画（D2）](#図の描画d2)
 - [データの保存とバックアップ](#データの保存とバックアップ)
 - [制限と検証状況](#制限と検証状況)
 - [開発・検証](#開発検証)
@@ -36,7 +36,16 @@
 
 作成済みの自己完結型ZIPを使う場合、利用者の環境に.NETをインストールする必要はありません。OSとCPUに合うパッケージを選んでください。
 
-GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。公開時はルート直下の `macos/`・`windows/` にZIPを配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
+GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。正式版はルート直下の `macos/`・`windows/`、開発版は各OSフォルダ内の `branch/` にZIPを配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
+
+このdevelopブランチのD2対応開発版は **1.1.0-dev.1** です。
+
+| 開発版の対象 | ダウンロード |
+|---|---|
+| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-dev.1-osx-arm64.zip](macos/branch/ViMarkdown-1.1.0-dev.1-osx-arm64.zip) |
+| Windows x64 | [ViMarkdown-1.1.0-dev.1-win-x64.zip](windows/branch/ViMarkdown-1.1.0-dev.1-win-x64.zip) |
+
+各branchフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。以下のOSフォルダ直下のZIPは、従来の正式版1.0.1です。
 
 | 環境 | 公開パッケージの配置先 |
 |---|---|
@@ -58,7 +67,7 @@ dotnet restore src/ViMarkdown --packages .nuget/packages
 dotnet run --project src/ViMarkdown --no-restore
 ```
 
-Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。Mermaidを使わない場合、Node.jsやChromeの準備は不要です。
+Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。開発版のVersionは1.1.0-dev.1です。D2は起動前に対象OS用CLIを準備してください。
 
 ## 最初のページを書く
 
@@ -331,103 +340,49 @@ DB内の画像は `assets/` にPNGで保存し、参照を `assets/画像名.png
 ## DOCX出力
 
 ページ一覧の右クリックメニュー「docx出力」で、そのページを出力します。ノート一覧の同メニューでは、ノート内の全ページを個別ファイルとして出力します。「未分類」も対象にできます。出力先の新規 `DocxExport-日時-識別子` フォルダに保存し、既存の出力を上書きしません。
-Open XML SDK 3.5.1で見出し、太字、斜体、コード、改行、罫線付き表を生成します。用紙はA4縦、上下左右の余白は15mmです。フォントは本文・見出し・表・コードともMeiryo UIを指定し、本文は10pt、見出しはH1〜H6の順に18・16・14・12・11・10pt（太字）です。画像とMermaid図はPNGとしてDOCX内部に埋め込み、DOCX単体を移動できます。画像はPNGのDPIと縦横比を保持し、A4の本文領域内に縮小します。各ファイルの先頭にページ名を付けます。
+Open XML SDK 3.5.1で見出し、太字、斜体、コード、改行、罫線付き表を生成します。用紙はA4縦、上下左右の余白は15mmです。フォントは本文・見出し・表・コードともMeiryo UIを指定し、本文は10pt、見出しはH1〜H6の順に18・16・14・12・11・10pt（太字）です。画像とD2図はPNGとしてDOCX内部に埋め込み、DOCX単体を移動できます。画像はPNGのDPIと縦横比を保持し、A4の本文領域内に縮小します。各ファイルの先頭にページ名を付けます。
 欠損画像には代替画像を埋め込み、描画できない図はコードを残します。診断は出力フォルダのテキストファイルに保存します。外部画像は取得せず参照文字列を残します。リンクは表示文字とURLを出力します。リストは簡易箇条書きで、番号・入れ子・取り消し線・HTML・高度な表配置の厳密な再現は未対応です。
 生成時にOpenXmlValidatorで構造検証し、失敗時は未完成の出力フォルダを削除します。これはWord等での実際の表示互換性確認を代替しません。
 
-## フローチャート（Mermaid）
+## 図の描画（D2）
 
-挿入モードで `mermaid` フェンス内に図のコードを入力・編集します。Escでリッチ表示に戻ると図を描画します。通常のコードフェンスは従来どおりコード表示です。
+開発版1.1では、`d2`フェンス内のコードを同梱D2 v0.9.0でPNGに変換します。Node.js・npm・Chromeの導入は不要です。テーマはID 1（Neutral Grey）、文字はアプリ本体と共有する外部MigMix 1Mです。D2の斜体はRegular、太字・SemiboldはBoldを使用します。
 
-````md
-```mermaid
-flowchart TD
-    A[開始] --> B{確認}
-    B -->|はい| C[完了]
-    B -->|いいえ| A
+````markdown
+```d2
+direction: right
+編集: ノートを編集
+保存: SQLiteに保存
+編集 -> 保存: 保存する
 ```
 ````
 
-Mermaidの図を表示するには、ViMarkdownとは別に **Node.js・Mermaid CLI（図を画像に変換するツール）・Chrome** が必要です。配布ZIPには含まれていないため、初回に準備します。Mermaidを使わない場合、この準備は不要です。
+- 1フェンスにつき1枚のPNGを描画します。同じページに複数のd2フェンスを配置できます。Layers・Scenarios・Stepsは、入れ子を含め非対応として診断します。
+- importは使用できません。HTTP/HTTPS・data URI・SVG・相対パス・UNCパスによる画像参照は拒否します。ラベル中のURL文字列は通信に使用されません。
+- ローカルPNG/JPEG（`.png`・`.jpg`・`.jpeg`）の絶対パスを `icon: "/Users/example/Pictures/image.png"` または `icon: "C:/Users/example/Pictures/image.jpg"` のように引用符で囲んで指定できます。拡張子と内容を検査し、読み込んだ画像を一時PNGへ変換してD2へ渡します。OSがマウントした共有ボリュームはローカルパスに見えることがあるため、ネットワークドライブ上の画像は使わないでください。
+- 初版では変数展開・引用符外のエスケープ、およびブロックラベル内の画像・HTMLには対応していません。参照検査を通過できない構文は描画前に診断します。`icon`はリテラルのパスを指定してください。
+- 構文エラー・参照エラー・実行環境不足・45秒のタイムアウトは図の位置に表示し、元コードを保持します。入力は100,000文字、参照画像は各8MB・合計32MB・32件、画像は1,600万画素、生成PNGは8MBまでです。
+- Markdown出力は `assets/ページ名(ページID)-d2-連番.png` へ変換し、DOCXにも同じPNGを埋め込みます。失敗した図は原文を残して `d2-errors.txt` に記録します。元ページは変更しません。
+- 既存の `mermaid` フェンスは通常のコードとして保持します。自動変換は行いません。
+- 別PCへ移したノートのローカル画像は、同じ絶対パスへ配置するかパスを修正してください。相対パスと画像フォルダ設定は今後の対象です。
 
-### 配布版を使う方：macOS
+### 開発環境でのD2準備
 
-以下は、`ViMarkdown.app` とGoogle Chromeを「アプリケーション」フォルダに置いた場合の例です。Mermaid用のファイルは、ホームフォルダ内の `ViMarkdown-mermaid` に保存します。**コマンドを実行するときの作業フォルダはどこでも構いません。**
-
-1. Node.js 22.13以上とGoogle Chromeをインストールします。
-2. 「ターミナル」を開き、次を実行します。ダウンロードはこの準備時に行います。
-
-```sh
-npm install --prefix "$HOME/ViMarkdown-mermaid" @mermaid-js/mermaid-cli@12.2.0
-```
-
-3. 起動中のViMarkdownを終了し、同じターミナルで次を実行します。
+Python 3を使用して、公式アーカイブを固定SHA-256で検証し、対象OS用CLIを準備します。Pythonが必要なのは開発・パッケージ生成時のみです。利用者向けZIPにはCLIとフォントを同梱します。
 
 ```sh
-export VIMARKDOWN_MERMAID_CLI="$HOME/ViMarkdown-mermaid/node_modules/@mermaid-js/mermaid-cli/src/cli.js"
-export VIMARKDOWN_NODE="$(command -v node)"
-export VIMARKDOWN_CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-/Applications/ViMarkdown.app/Contents/MacOS/ViMarkdown
+# macOS ARM64
+python3 scripts/prepare-d2.py osx-arm64
+# Windows x64（Windowsではpythonを使用）
+python scripts/prepare-d2.py win-x64
 ```
 
-これで、設定したツールを使ってViMarkdownが起動します。アプリを別の場所に置いた場合は、最後の行を実際の配置先に変更してください。
+取得済みアーカイブは `--archive ファイル名` でも指定できます。CLIは `tools/d2/runtime/対象RID/`（Git対象外）、ライセンス・依存通知と対応ソースの入手先は `tools/d2/licenses/` に保持します。パッケージスクリプトもこの準備処理を呼びます。
 
-**上の設定はターミナル内だけで有効です。** この手順で使う間は、次回も手順3で起動します。Finderからのダブルクリック起動には、この設定は引き継がれません。手順2のインストールを毎回行う必要はありません。
-
-### 配布版を使う方：Windows
-
-Mermaid用のファイルは、ユーザーフォルダ内の `ViMarkdown-mermaid` に保存します。**PowerShellを開く場所はどこでも構いません。**
-
-1. Node.js 22.13以上をインストールし、PowerShellを開き直します。
-2. 次を実行します。2行目は、図の描画専用のChromeをダウンロードするコマンドです。
-
-```powershell
-npm.cmd install --prefix "$env:USERPROFILE/ViMarkdown-mermaid" @mermaid-js/mermaid-cli@12.2.0
-node "$env:USERPROFILE/ViMarkdown-mermaid/node_modules/puppeteer/lib/puppeteer/node/cli.js" browsers install chrome
-```
-
-3. 起動中のViMarkdownを終了し、同じPowerShellで次を実行します。**最後の行だけ、展開した `ViMarkdown.exe` の実際の場所に置き換えてください。**
-
-```powershell
-$env:VIMARKDOWN_MERMAID_CLI = "$env:USERPROFILE/ViMarkdown-mermaid/node_modules/@mermaid-js/mermaid-cli/src/cli.js"
-$env:VIMARKDOWN_NODE = (Get-Command node.exe).Source
-& "C:/展開先/ViMarkdown/ViMarkdown.exe"
-```
-
-この例では、手順2で導入したChromeを自動的に使います。上の設定はPowerShell内だけで有効なので、次回も手順3で起動します。エクスプローラーからのダブルクリック起動には、この設定は引き継がれません。手順2は初回のみです。
-
-### ソースから起動する開発者向け
-
-配布版を使う方は、この項目の作業は不要です。「リポジトリ直下」とは、取得したソースの `README.md` と `tools/` があるフォルダです。そのフォルダで次を実行します。
+実CLIを含む関連テスト:
 
 ```sh
-npm ci --prefix tools/mermaid
-```
-
-これにより `tools/mermaid/node_modules/` に依存ツールが入ります。アプリは自身の配置先または作業フォルダから親フォルダをたどって、この配置を探します。見つからない場合は、配布版の例と同様に `VIMARKDOWN_MERMAID_CLI` に `cli.js` の絶対パスを指定してください。
-
-macOSの標準配置のGoogle Chromeは自動検出します。それ以外では、次のコマンドで描画用Chromeを導入できます。
-
-```sh
-node tools/mermaid/node_modules/puppeteer/lib/puppeteer/node/cli.js browsers install chrome
-```
-
-インストール済みの別のChromeを使う場合は、`VIMARKDOWN_CHROME` にChrome実行ファイルの絶対パスを設定します。設定変更後はアプリを再起動してください。
-
-### 描画と出力の動作
-
-- 描画はバックグラウンドで1図ずつ実行し、待機中はメッセージを表示します。挿入モードの入力中は描画しません。
-- コード内容のSHA-256をキーに最大64件のメモリキャッシュを共有します。成功画像・エラーとも再利用し、同じコードの同時要求もまとめます。アプリ終了時に破棄します。
-- 構文エラーは図の位置にMermaidの診断を表示します。実行環境の不足・描画失敗・45秒のタイムアウトは区別して表示し、コードは保持します。
-- 図の原文範囲にはフェンスを含めます。図のクリックと選択も原文位置に対応し、挿入モードでは元コードを編集できます。
-- Markdown出力では図を `assets/ページ名(ページID)-mermaid-連番.png` に保存し、画像参照へ置き換えます。画像用の連番とは別に図を1から採番します。描画できない図はコードを残し、`mermaid-errors.txt` と状態欄に失敗を記録します。元ページは変更しません。
-
-描画は白背景で、表示時に編集領域の幅・高さ336px以内に縮小します。コード100,000文字、辺500本、生成PNG 8MBを上限とします。永続ディスクキャッシュと図のズーム操作は未対応です。WindowsでのChrome起動・GUI操作は実機確認が必要です。
-
-通常の自動チェックでは図の原文範囲、キャッシュ共有、変更時の再描画、エラー保持、クリック・選択、画像出力を確認します。CLIとChromeの導入後、実エンジンでの日本語図・構文エラー・出力も検証できます。
-
-```sh
-dotnet run --project tests/ViMarkdown.Checks --no-restore -- --mermaid
+dotnet run --project tests/ViMarkdown.Checks -- --affected --d2
 ```
 
 ## データの保存とバックアップ
@@ -462,7 +417,7 @@ OS/IMEによってキーの消費動作が異なるため、変換中のEscと�
 
 ## 実装範囲
 
-- Windows版・macOS版とも、UI・本文・ページ一覧・コードに同梱のMigMix 1M（Regular・Bold）を使用します。OSへのフォントインストールは不要です。ページ一覧はフォントの実測行高と共通の余白で配置します。未収録文字や絵文字、OSが描画するタイトルバー・ネイティブメニューには環境差が残ります。フォントのライセンスと置き換え案内は配布物の `Assets/Fonts/MigMix1M/` に収録します。
+- Windows版・macOS版とも、UI・本文・ページ一覧・コードに同梱のMigMix 1M（Regular・Bold）を使用します。OSへのフォントインストールは不要です。ページ一覧はフォントの実測行高と共通の余白で配置します。未収録文字や絵文字、OSが描画するタイトルバー・ネイティブメニューには環境差が残ります。フォントのライセンスと置き換え案内は配布物の `Licenses/MigMix1M/`（macOSはContents/Resources内） に収録します。
 - 挿入モードはLight Plus配色のMarkdownシンタックスハイライトを使用します。見出しは青、強調・取り消し線は紫、リスト・タスク・表の記号は緑、引用は青灰色、リンク先は灰色です。コードは茶色と薄いグレーの背景（`#F2F2F2`）で表示し、言語別の色分けは行いません。記号と文字サイズを保持し、本文やUndo履歴は変更しません。コードフェンスの編集やUndo後も後続行の色を更新します。
 - 同じAvaloniaEdit `TextDocument` を全モードで共有。表示切り替えはページを書き換えません。
 - 挿入モードはAvaloniaEdit。IMEの未確定文字をカーソル位置に下線付きで逐次表示し、確定時に本文へ挿入します。未確定文字は保存内容やUndo履歴に含めません。
@@ -545,12 +500,14 @@ macOSのパッケージには `src/ViMarkdown/Assets/ViMarkdown.icns` を組み�
 Windowsの実行ファイルには `src/ViMarkdown/Assets/ViMarkdown.ico` を `ApplicationIcon` 設定で埋め込みます。
 macOSではZIPを展開し `ViMarkdown.app` をApplicationsへコピーして起動します。WindowsではZIPを展開し `Install.ps1` をPowerShellで実行すると、ユーザーの `LocalAppData/Programs/ViMarkdown` にコピーしスタートメニューへ登録します。展開先の `publish/ViMarkdown.exe` から直接起動も可能です。
 macOSパッケージはローカルのアドホック署名のみで、Developer ID署名・公証、Windowsのコード署名は未実施です。一般公開向けの署名は別途必要です。
-Mermaidの実描画には従来どおり別途Node.js・Mermaid CLI・Chromeが必要です。配布物には同梱しません。CLIは `VIMARKDOWN_MERMAID_CLI` で指定します。依存の導入手順は[フローチャート（Mermaid）](#フローチャートmermaid)を参照してください。
+D2はCLI・フォント・ライセンスを配布物に同梱します。追加のNode.js・Chromeやフォントインストールは不要です。
 GitHub Actionsの `Packages` を手動実行すると、macOS ARM64・Windows x64向けにチェックとパッケージ生成を実行します。実機のインストール・起動と対象アプリでの確認手順は [docs/step8-validation.md](docs/step8-validation.md) を参照してください。
 
 ### GitHubへの掲載構成
 
 ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は1.1に向けた開発用ブランチです。正式版ZIPはOS別フォルダ直下に置き、開発版を配布する場合は各OSフォルダ内の `branch/` に置きます。
+
+開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。初回は1.1.0-dev.1、次回は1.1.0-dev.2です。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。
 
 ```text
 ViMarkdown/                      # 公開用リポジトリのルート
@@ -584,6 +541,8 @@ ViMarkdown/                      # 公開用リポジトリのルート
 | macOS ARM64 | 成功 | アドホック署名検証済み。今回のビルドの起動・導入は未確認（以前のビルドでは一時DBで稼働・DB作成を確認） |
 | Windows x64 | クロスビルド成功 | 実行ファイルへのアイコン埋め込みを確認。今回のビルドはWindows実機での起動・導入未確認（以前の配布版はユーザー確認済み） |
 
-macOS ARM64もApplicationsへの導入と画面操作による確認は未実施です。Developer ID署名・公証とWindowsコード署名も未実施です。Mermaidの実描画用依存は同梱していません。
+開発版1.1.0-dev.1ではD2描画・外部共有フォント・参照制限を導入しました。macOS上で実CLIを含む34スイート・2,565チェックの成功を確認した後、診断表示の余白を修正しています。余白修正後および今回の配布ビルドではテストをスキップしています。Windows版は利用者から動作OKの確認を受けています。今回生成したZIPそれぞれの実機インストール・画面操作を網羅確認したものではありません。
+
+Developer ID署名・公証とWindowsコード署名は未実施です。macOS版はアドホック署名です。1.0.1の正式版ZIPは変更していません。
 
 Intel Mac用・Windows ARM64用のZIPはGitHubの現行ブランチから削除し、標準のビルド・掲載対象から除外しています。

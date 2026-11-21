@@ -114,7 +114,7 @@ public sealed class LightPlusMarkdown : DocumentColorizingTransformer
                 switch (block)
                 {
                     case CodeBlock code:
-                        // All languages, including Mermaid, use the same code color.
+                        // All languages, including D2, use the same code color.
                         // An unfinished fence can have a span ending at its opener
                         // while its content lines already extend to end-of-document.
                         var codeEnd = code.Lines.Lines.Take(code.Lines.Count)

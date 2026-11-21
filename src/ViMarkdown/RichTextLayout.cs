@@ -15,7 +15,7 @@ public sealed class RichTextLayout : IDisposable
     private record MappedUnit(DisplayUnit Unit, int Start, int Length);
     private readonly List<MappedUnit> _mapping = [];
     private sealed record ObjectLayout(DisplayUnit Unit, int Offset, double Height, Bitmap? Image, Size ImageSize,
-        List<(RichTextLayout Layout, Rect Rect)> Cells, string? Error);
+        List<(RichTextLayout Layout, Rect Rect)> Cells, string? Error, bool Pending);
     private readonly List<ObjectLayout> _objects = [];
     private readonly double _width;
     private const double CellPaddingY = 4;
@@ -24,11 +24,12 @@ public sealed class RichTextLayout : IDisposable
     public TextLayout Layout { get; }
     private readonly double[] _lineTops;
     private readonly double[] _lineShifts;
+    private readonly double[] _lineHeights;
     public double Height { get; }
     public Vector FirstLineInkInset { get; }
 
     public RichTextLayout(IReadOnlyList<DisplayUnit> units, double width, Func<string, byte[]?>? imageResolver = null, double lineHeight = double.NaN,
-        Func<string, MermaidResult?>? mermaidResolver = null, TextAlignment alignment = TextAlignment.Left)
+        Func<string, D2Result?>? d2Resolver = null, TextAlignment alignment = TextAlignment.Left)
     {
         _width = Math.Max(1, width);
         // Let each text line follow its font metrics (including headings and
@@ -38,6 +39,7 @@ public sealed class RichTextLayout : IDisposable
         var objectLineHeight = bodyLine.TextLines[0].Height;
         var text = new StringBuilder();
         var styles = new List<ValueSpan<TextRunProperties>>();
+        var diagnosticBlocks = new List<(int Offset, int Length, double Height, bool TrimFollowingGap)>();
         DisplayUnit? previousStyle = null;
         var styleStart = 0;
         void FinishStyle()
@@ -59,7 +61,7 @@ public sealed class RichTextLayout : IDisposable
         foreach (var original in units)
         {
             var unit = original;
-            if (unit.Rule || unit.Table is not null || unit.ImageUrl is not null || unit.MermaidCode is not null)
+            if (unit.Rule || unit.Table is not null || unit.ImageUrl is not null || unit.D2Code is not null)
             {
                 // Objects occupy complete visual lines; source spans remain atomic.
                 if (text.Length > 0 && text[^1] != '\n') text.Append('\n');
@@ -68,6 +70,7 @@ public sealed class RichTextLayout : IDisposable
                 var imageSize = default(Size);
                 double height = 84;
                 string? error = null;
+                var pending = false;
                 if (unit.Table is { Count: > 0 } rows)
                 {
                     var columns = Math.Max(1, rows.Max(r => r.Count));
@@ -75,7 +78,7 @@ public sealed class RichTextLayout : IDisposable
                     height = 0;
                     foreach (var row in rows)
                     {
-                        var layouts = row.Select((c, i) => new RichTextLayout(c, Math.Max(1, cellWidth - 16), imageResolver, lineHeight, mermaidResolver, unit.Alignments?.ElementAtOrDefault(i) ?? TextAlignment.Left)).ToArray();
+                        var layouts = row.Select((c, i) => new RichTextLayout(c, Math.Max(1, cellWidth - 16), imageResolver, lineHeight, d2Resolver, unit.Alignments?.ElementAtOrDefault(i) ?? TextAlignment.Left)).ToArray();
                         var rowHeight = layouts.Select(l => l.Height).DefaultIfEmpty(objectLineHeight).Max() + CellPaddingY * 2;
                         for (var i = 0; i < layouts.Length; i++)
                             cells.Add((layouts[i], new Rect(i * cellWidth, height, cellWidth, rowHeight)));
@@ -87,9 +90,10 @@ public sealed class RichTextLayout : IDisposable
                 {
                     try
                     {
-                        var result = unit.MermaidCode is null ? null : mermaidResolver?.Invoke(unit.MermaidCode);
-                        error = unit.MermaidCode is null ? null : result?.Error ?? (result?.Png is null ? "Mermaidを描画中…" : null);
-                        var data = unit.MermaidCode is null ? imageResolver?.Invoke(unit.ImageUrl!) : result?.Png;
+                        var result = unit.D2Code is null ? null : d2Resolver?.Invoke(unit.D2Code);
+                        pending = unit.D2Code is not null && result is null;
+                        error = unit.D2Code is null ? null : result?.Error ?? (result?.Png is null ? "D2を描画中…" : null);
+                        var data = unit.D2Code is null ? imageResolver?.Invoke(unit.ImageUrl!) : result?.Png;
                         if (data is not null) bitmap = new Bitmap(new MemoryStream(data));
                         if (bitmap is not null)
                         {
@@ -99,15 +103,19 @@ public sealed class RichTextLayout : IDisposable
                     }
                     catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException) { }
                 }
-                if (error is not null)
+                if (error is not null && !pending)
                 {
                     using var label = new TextLayout(error, Typography.BodyTypeface, Typography.Diagnostic, WorkspaceColors.Diagnostic,
                         textWrapping: TextWrapping.Wrap, maxWidth: Math.Max(1, _width - 16));
-                    height = Math.Max(height, label.Height + 16);
+                    height = label.Height + objectLineHeight;
                 }
                 var objectLines = (int)Math.Ceiling(height / objectLineHeight);
-                height = objectLines * objectLineHeight;
-                _objects.Add(new(unit, text.Length, height, bitmap, imageSize, cells, error));
+                var reservedHeight = objectLines * objectLineHeight;
+                if (error is not null)
+                    diagnosticBlocks.Add((text.Length, objectLines, height, !pending));
+                else
+                    height = reservedHeight;
+                _objects.Add(new(unit, text.Length, height, bitmap, imageSize, cells, error, pending));
                 unit = unit with { Text = new string('\n', objectLines), Size = Typography.Body, Bold = false, Italic = false, Code = false };
             }
             if (previousStyle is null || !SameStyle(previousStyle, unit))
@@ -126,6 +134,32 @@ public sealed class RichTextLayout : IDisposable
             textWrapping: TextWrapping.Wrap, maxWidth: Math.Max(1, width), lineHeight: lineHeight, textAlignment: alignment,
             textStyleOverrides: styles);
         var lines = Layout.TextLines;
+        _lineHeights = lines.Select(line => line.Height).ToArray();
+        foreach (var block in diagnosticBlocks)
+        {
+            var first = Layout.GetLineIndexFromCharacterIndex(block.Offset, false);
+            var last = Layout.GetLineIndexFromCharacterIndex(block.Offset + block.Length - 1, false);
+            var actualHeight = _lineHeights.Skip(first).Take(last - first + 1).Sum();
+            // Empty TextLayout lines can inherit adjacent run metrics. Normalize
+            // the actual reserved lines, rather than assuming body-sized lines.
+            for (var index = first; index <= last; index++)
+                _lineHeights[index] *= block.Height / actualHeight;
+            if (!block.TrimFollowingGap) continue;
+            // Projection emits a block terminator and a collapsed source gap.
+            // The diagnostic already owns its one-line bottom margin. Keep the
+            // source mappings for editing, without reserving those lines twice.
+            var next = block.Offset + block.Length;
+            foreach (var item in _mapping.Where(m => m.Start >= next))
+            {
+                if (item.Start != next || item.Length == 0 || item.Unit.D2Code is not null ||
+                    item.Unit.ImageUrl is not null || item.Unit.Table is not null || item.Unit.Rule ||
+                    !item.Unit.Text.All(c => c is '\r' or '\n')) break;
+                var gapFirst = Layout.GetLineIndexFromCharacterIndex(item.Start, false);
+                var gapLast = Layout.GetLineIndexFromCharacterIndex(item.Start + item.Length - 1, false);
+                for (var index = gapFirst; index <= gapLast; index++) _lineHeights[index] = 0;
+                next += item.Length;
+            }
+        }
         _lineTops = new double[lines.Count];
         _lineShifts = new double[lines.Count];
         var spacing = new double[lines.Count];
@@ -140,7 +174,7 @@ public sealed class RichTextLayout : IDisposable
             _lineTops[i] = top + shift;
             _lineShifts[i] = shift;
             top += lines[i].Height;
-            shift += spacing[i];
+            shift += spacing[i] + _lineHeights[i] - lines[i].Height;
         }
         Height = top + shift;
         FirstLineInkInset = TextInkAlignment.Inset(Layout.TextLines[0], Text);
@@ -167,7 +201,7 @@ public sealed class RichTextLayout : IDisposable
     {
         for (var i = 0; i < _lineTops.Length; i++)
         {
-            var bottom = _lineTops[i] + Layout.TextLines[i].Height;
+            var bottom = _lineTops[i] + _lineHeights[i];
             if (y < bottom) return y - _lineShifts[i];
             if (i + 1 < _lineTops.Length && y < _lineTops[i + 1])
                 return bottom - _lineShifts[i] - .001;
@@ -208,7 +242,7 @@ public sealed class RichTextLayout : IDisposable
             {
                 using var label = new TextLayout(obj.Error ?? "[画像を読み込めません]", Typography.BodyTypeface, Typography.Diagnostic, WorkspaceColors.Diagnostic,
                     textWrapping: TextWrapping.Wrap, maxWidth: Math.Max(1, _width - 16));
-                label.Draw(context, new Point(8, top + 8));
+                label.Draw(context, new Point(8, top + (obj.Pending || obj.Error is null ? 8 : 0)));
             }
         }
     }
@@ -289,7 +323,7 @@ public sealed class RichTextLayout : IDisposable
         {
             var previous = _mapping.LastOrDefault(m => m.Length > 0 && m.Start + m.Length <= displayOffset)?.Unit;
             if (previous is not null && !previous.Text.Contains('\n') && !previous.Text.Contains('\r') &&
-                previous.Table is null && previous.ImageUrl is null && previous.MermaidCode is null)
+                previous.Table is null && previous.ImageUrl is null && previous.D2Code is null)
                 unit = previous;
         }
         var height = Math.Max(1, unit?.Size ?? Typography.Body);
@@ -299,7 +333,7 @@ public sealed class RichTextLayout : IDisposable
     public bool IsOnLastContentLine(int sourceOffset)
     {
         var last = _mapping.LastOrDefault(m => m.Length > 0 && (m.Unit.Text.Trim('\r', '\n').Length > 0 ||
-            m.Unit.ImageUrl is not null || m.Unit.MermaidCode is not null || m.Unit.Table is not null));
+            m.Unit.ImageUrl is not null || m.Unit.D2Code is not null || m.Unit.Table is not null));
         if (last is null) return true;
         return Layout.GetLineIndexFromCharacterIndex(ToDisplayOffset(sourceOffset), false) >=
             Layout.GetLineIndexFromCharacterIndex(last.Start + last.Length - 1, false);

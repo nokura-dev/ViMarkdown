@@ -177,7 +177,7 @@ internal static class WorkspaceSearchChecks
             Layout();
             check(pane.IsVisible && results.Items.Count == 602 && Math.Abs(scroll.Offset.Y - beforeScroll) < 2,
                 "ダブルクリックで移動した後も結果一覧とスクロール位置を保持する");
-            check(window.Title?.StartsWith(lastHit.PageName) == true && session.Rich.Caret == lastHit.Offset && session.Rich.SearchRanges.Count > 0,
+            check(window.Title == "ViMarkdown — " + lastHit.PageName && session.Rich.Caret == lastHit.Offset && session.Rich.SearchRanges.Count > 0,
                 "画面外だった末尾カードのダブルクリックで該当ページ・行・一致語先頭に移動する");
             if (renderPath is not null)
             {

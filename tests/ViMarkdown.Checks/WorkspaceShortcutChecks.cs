@@ -71,25 +71,40 @@ internal static class WorkspaceShortcutChecks
             "ページは名前入力なしで日時・空行の2行構成で作成する");
         check(DateTime.TryParseExact(lines[0], "yyyy/MM/dd HH:mm", System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var created) && Math.Abs((DateTime.Now - created).TotalSeconds) < 65 &&
-            window.Title == lines[0] + " — ViMarkdown", "作成日時を1行目とページ名へ設定する");
+            window.Title == "ViMarkdown — " + lines[0], "作成日時を1行目とページ名へ設定する");
         check(session.Editor.IsVisible && session.Editor.TextArea.IsKeyboardFocusWithin &&
             session.Editor.Document.GetLocation(session.Editor.CaretOffset) == new AvaloniaEdit.Document.TextLocation(2, 1),
             "新規ページを2行目先頭にカーソルを置いた挿入モードで開く");
         session.Editor.Document.Text = lines[0] + "\n  ##   ";
         Save();
-        check(window.Title == lines[0] + " — ViMarkdown", "2行目が空白や見出し記号のみなら日時名を維持する");
+        check(window.Title == "ViMarkdown — " + lines[0], "2行目が空白や見出し記号のみなら日時名を維持する");
         session.Editor.Document.Text = lines[0] + "\n  ##   新しいページ名  ";
         Save();
-        check(window.Title == "新しいページ名 — ViMarkdown", "2行目の見出し記号と前後空白を除いた名前に自動変更する");
+        check(window.Title == "ViMarkdown — 新しいページ名", "2行目の見出し記号と前後空白を除いた名前に自動変更する");
         session.Editor.Document.Text += "続き";
         Save();
-        check(window.Title == "新しいページ名  続き — ViMarkdown", "入力途中の保存後も2行目の入力に名前が追従する");
+        check(window.Title == "ViMarkdown — 新しいページ名  続き", "入力途中の保存後も2行目の入力に名前が追従する");
         session.Editor.Document.Text = "# 1行目のタイトル\n別の本文";
         Save();
-        check(window.Title == "1行目のタイトル — ViMarkdown", "日時行をタイトルへ置き換えた場合は1行目を採用する");
+        check(window.Title == "ViMarkdown — 1行目のタイトル", "日時行をタイトルへ置き換えた場合は1行目を採用する");
         session.Editor.Document.Text = lines[0] + "\n## 2行目のタイトル";
         Save();
-        check(window.Title == "2行目のタイトル — ViMarkdown", "1行目を日時に戻した場合も2行目を採用する");
+        check(window.Title == "ViMarkdown — 2行目のタイトル", "1行目を日時に戻した場合も2行目を採用する");
+        foreach (var second in new[] { "", "   ", "  ##   " })
+        {
+            session.Editor.Document.Text = lines[0] + "\n" + second;
+            Save();
+            check(window.Title == "ViMarkdown — " + lines[0],
+                "2行目を無効な文字列に戻すと以前の名前ではなく1行目の日時を採用する");
+        }
+        session.Editor.Document.Text = lines[0];
+        Save();
+        check(window.Title == "ViMarkdown — " + lines[0], "2行目がない日時だけのページは1行目を採用する");
+        session.Editor.Document.Text = "# 日付ではない1行目\n## 使わない2行目";
+        Save();
+        check(window.Title == "ViMarkdown — 日付ではない1行目", "1行目が日付以外なら有効な2行目より1行目を優先する");
+        session.Editor.Document.Text = lines[0] + "\n## 2行目のタイトル";
+        Save();
         var pageList = ((Grid)window.Content!).Children.Single(c => Grid.GetColumn(c) == 3)
             .GetVisualDescendants().OfType<ListBox>().Single();
         var createdPage = (ViMarkdown.WorkspaceItem)pageList.SelectedItem!;
@@ -99,7 +114,7 @@ internal static class WorkspaceShortcutChecks
         open.Invoke(window, new object?[] { createdPage.Id });
         session.Editor.Document.Text = lines[0] + "\n# 再表示後は変更しない";
         Save();
-        check(window.Title == "2行目のタイトル — ViMarkdown", "新規作成ページも一度離れて開き直した後は自動命名しない");
+        check(window.Title == "ViMarkdown — 2行目のタイトル", "新規作成ページも一度離れて開き直した後は自動命名しない");
         session.Key(PhysicalKey.N, RawInputModifiers.Control);
         session.Key(PhysicalKey.F2);
         var rename = Dialog("名前変更");
@@ -113,10 +128,10 @@ internal static class WorkspaceShortcutChecks
         presenter.PreeditText = null;
         rename.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
         Dispatcher.UIThread.RunJobs();
-        check(!rename.IsVisible && window.Title?.StartsWith("Enterで保存") == true, "Enterで名前変更を確定する");
+        check(!rename.IsVisible && window.Title == "ViMarkdown — Enterで保存", "Enterで名前変更を確定する");
         session.Editor.Document.Text = lines[0] + "\n# 自動変更しない";
         Save();
-        check(window.Title == "Enterで保存 — ViMarkdown", "手動で名前変更した後は2行目による自動変更を停止する");
+        check(window.Title == "ViMarkdown — Enterで保存", "手動で名前変更した後は2行目による自動変更を停止する");
         session.Key(PhysicalKey.F2);
         rename = Dialog("名前変更");
         rename.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);

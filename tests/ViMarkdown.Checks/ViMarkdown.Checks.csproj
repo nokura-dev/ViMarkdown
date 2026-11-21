@@ -12,7 +12,7 @@
   </ItemGroup>
   <Target Name="WriteCheckBuildInputs" AfterTargets="Build">
     <ItemGroup>
-      <_CheckBuildInput Include="../../src/**/*;../../tests/**/*;../../docs/markdown-features-sample.md;../../*.*"
+      <_CheckBuildInput Include="../../src/**/*;../../tests/**/*;../../docs/markdown-features-sample.md;../../tools/d2/**/*;../../*.*"
                         Exclude="../../**/bin/**;../../**/obj/**;../../**/node_modules/**;../../**/.git/**;../../**/.cache/**;../../**/.DS_Store" />
     </ItemGroup>
     <RemoveDuplicates Inputs="@(_CheckBuildInput)">

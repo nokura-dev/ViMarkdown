@@ -24,21 +24,26 @@ internal static class NavigationChecks
         {
             session.Reset(source, first);
             session.Key(PhysicalKey.H);
-            check(rich.Caret == (source.StartsWith("term") ? 4 : first), $"hは非表示記号を飛ばし、前の表示行があれば戻る {source.Replace('\n', ' ')}");
+            check(rich.Caret == (source.StartsWith("term") ? 4 : source.StartsWith("> ") ? 0 : first), $"hは非表示記号を飛ばし、前の表示行があれば戻る {source.Replace('\n', ' ')}");
             session.Reset(source, first);
             session.Key(PhysicalKey.L); session.Key(PhysicalKey.L);
             check(rich.Caret == last, $"非表示の終了記号へlで移動しない {source.Replace('\n', ' ')}");
             session.Key(PhysicalKey.Digit0);
-            check(rich.Caret == first, "0は表示内容の行頭へ移動");
+            check(rich.Caret == (source.StartsWith("> ") ? 0 : first), "0は引用符を含む表示内容の行頭へ移動");
             session.Key(PhysicalKey.Digit4, RawInputModifiers.Shift);
             check(rich.Caret == editor.Document.GetLineByOffset(last).EndOffset, $"$は原文の行末へ移動 [{source}, actual={rich.Caret}]");
             check(editor.Text == source, "カーソル移動で原文を変更しない");
         }
-        foreach (var source in new[] { "![abc](asset://x)", "---", "```mermaid\ngraph TD; A-->B\n```" })
+        session.Reset("> abc", 2);
+        session.Key(PhysicalKey.H);
+        check(rich.Caret == 0, "引用文のaからhで引用符の前へ移動する");
+        session.Key(PhysicalKey.L);
+        check(rich.Caret == 2 && editor.Text == "> abc", "引用符の前からlでaへ戻り原文は維持する");
+        foreach (var source in new[] { "![abc](asset://x)", "---", "```d2\ngraph TD; A-->B\n```" })
         {
             session.Reset(source, 0);
             session.Key(PhysicalKey.L); session.Key(PhysicalKey.L);
-            check(rich.Caret == (source.Contains('\n') ? source.IndexOf('\n') : source.Length), "画像・水平線・Mermaidからlで行末へ移動");
+            check(rich.Caret == (source.Contains('\n') ? source.IndexOf('\n') : source.Length), "画像・水平線・D2からlで行末へ移動");
         }
         session.Reset("- [ ] abc", 2);
         session.Key(PhysicalKey.L);

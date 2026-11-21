@@ -54,7 +54,8 @@ static void RunChecks(string[] args)
     Run(nameof(ParagraphNavigationChecks), () => ParagraphNavigationChecks.Run(Check));
     Run(nameof(LineBreakChecks), () => LineBreakChecks.Run(Check));
     Run(nameof(ScrollChecks), () => ScrollChecks.Run(Check));
-    Run(nameof(MermaidChecks), () => MermaidChecks.Run(Check, options.Mermaid));
+    Run(nameof(D2PolicyChecks), () => D2PolicyChecks.Run(Check));
+    Run(nameof(D2Checks), () => D2Checks.Run(Check, options.D2));
     Run(nameof(AffectedChecksChecks), () => AffectedChecksChecks.Run(Check, suites.Select(s => s.Name).ToArray()));
 
     var names = suites.Select(s => s.Name).ToArray();
@@ -64,7 +65,7 @@ static void RunChecks(string[] args)
     try
     {
         root = CheckInputs.FindRoot();
-        snapshot = CheckInputs.Capture(root, options.Mermaid);
+        snapshot = CheckInputs.Capture(root, options.D2);
         statePath = Path.Combine(root, ".cache", "checks", "state.json");
         history = AffectedChecks.Load(statePath);
     }
@@ -100,7 +101,7 @@ static void RunChecks(string[] args)
     if (fallback is not null) return;
     try
     {
-        var after = CheckInputs.Capture(root!, options.Mermaid);
+        var after = CheckInputs.Capture(root!, options.D2);
         if (!CheckInputs.Same(snapshot, after))
         {
             Console.Error.WriteLine("実行中に入力・実行条件が変更されたため成功記録は更新しません。再実行してください。");

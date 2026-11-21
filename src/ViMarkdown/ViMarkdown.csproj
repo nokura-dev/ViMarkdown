@@ -2,14 +2,24 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>1.0.1</Version>
+    <Version>1.1.0-dev.1</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Avalonia 11 exposes stream font creation only through its unstable platform API. -->
+    <AvaloniaAccessUnstablePrivateApis>true</AvaloniaAccessUnstablePrivateApis>
+    <D2Runtime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</D2Runtime>
+    <D2Runtime Condition="'$(D2Runtime)' == ''">$(NETCoreSdkRuntimeIdentifier)</D2Runtime>
     <ApplicationIcon>Assets/ViMarkdown.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <AvaloniaResource Include="Assets/Fonts/MigMix1M/*.ttf" />
+    <Content Include="Assets/Fonts/MigMix1M/*.ttf" Link="Fonts/MigMix1M/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets/Fonts/MigMix1M/**/*" Exclude="Assets/Fonts/MigMix1M/*.ttf"
+             Link="Licenses/MigMix1M/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../tools/d2/runtime/$(D2Runtime)/**/*" Link="Tools/D2/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../tools/d2/licenses/**/*" Link="Licenses/D2/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />

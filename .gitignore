@@ -21,3 +21,6 @@ AGENTS.md
 *.p12
 *.pem
 *.key
+
+/tools/d2/runtime/
+**/__pycache__/

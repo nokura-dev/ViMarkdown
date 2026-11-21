@@ -13,7 +13,7 @@ public record DisplayUnit(string Text, int Start, int End, double Size = Typogra
     bool Bold = false, bool Italic = false, bool Code = false,
     bool Strike = false, string? LinkUrl = null, int? TaskOffset = null, bool Rule = false,
     IReadOnlyList<TextAlignment>? Alignments = null, double HeadingRuleThickness = 0, double BottomSpacing = 0,
-    string? ImageUrl = null, string? MermaidCode = null, IReadOnlyList<IReadOnlyList<IReadOnlyList<DisplayUnit>>>? Table = null);
+    string? ImageUrl = null, string? D2Code = null, IReadOnlyList<IReadOnlyList<IReadOnlyList<DisplayUnit>>>? Table = null);
 
 // Source offsets are UTF-16, matching AvaloniaEdit. Grapheme boundaries prevent
 // navigation from splitting surrogate pairs, combining marks or emoji sequences.
@@ -160,7 +160,8 @@ public static class Projection
                     while (i < prefix.Length && prefix[i] != '│') i++;
                     var sourceStart = cursor;
                     while (cursor < contentOffset && source[cursor] is ' ' or '\t') cursor++;
-                    result.Add(new(prefix[start..i], sourceStart, cursor));
+                    // Quote padding is visual spacing, not a separate caret stop.
+                    result.Add(new(prefix[start..i], sourceStart, sourceStart));
                 }
             }
             return result;
@@ -232,8 +233,8 @@ public static class Projection
                 else if (block is LeafBlock { Inline: not null } leaf)
                     Inline(leaf.Inline, block is HeadingBlock h ? (32 - h.Level * 2) * Typography.RichScale : Typography.Body,
                         block is HeadingBlock || block is DefinitionTerm);
-                else if (block is FencedCodeBlock mermaid && MermaidRenderer.IsMermaid(mermaid))
-                    output.Add(new("", block.Span.Start, block.Span.End + 1, MermaidCode: MermaidRenderer.Code(mermaid)));
+                else if (block is FencedCodeBlock d2 && D2Renderer.IsD2(d2))
+                    output.Add(new("", block.Span.Start, block.Span.End + 1, D2Code: D2Renderer.Code(d2)));
                 else if (block is CodeBlock code)
                 {
                     foreach (var line in code.Lines.Lines.Take(code.Lines.Count))

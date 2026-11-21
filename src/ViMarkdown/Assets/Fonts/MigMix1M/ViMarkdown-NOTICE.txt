@@ -56,17 +56,12 @@ https://github.com/itouhiro/mixfont-mplus-ipa/tree/main/mplus_outline_fonts/mig.
 
 アプリへの組み込みと置き換え時の参照箇所
 --------------------------------------
-TTFはViMarkdownアセンブリのAvaloniaリソースとして埋め込んでいます。
-配布物のこのディレクトリにはライセンスと案内文書を収録し、
-元のTTFは上記の公式ZIPまたはソースの同ディレクトリから取得できます。
-SHA256SUMSはソースに収録した元の配布ファイルの照合用です。
+1.1開発版ではTTFはアセンブリに埋め込まず、Fonts/MigMix1M/へ配置します。
+macOSではViMarkdown.app/Contents/Resources/Fonts/MigMix1M/です。
+アプリ本体と同梱D2 CLIが同じTTFを使用します。
+ライセンス文書はLicenses/MigMix1M/（macOSはContents/Resources内）へ配置します。
 
-リソース登録: src/ViMarkdown/ViMarkdown.csproj
-共通フォント指定: src/ViMarkdown/Typography.cs の BodyFont
-
-IPAゴシックへ置き換えるには、ソースのこのディレクトリにipag.ttfを配置し、
-MigMixの2つのTTFをリソース登録対象から除外してください。
-BodyFontの指定を次のように変更して再ビルドします。
-  avares://ViMarkdown/Assets/Fonts/MigMix1M#IPAGothic
-EditorFont・JapaneseUiFontはBodyFontを参照するため、一緒に切り替わります。
-元のIPAゴシックにはBold専用TTFがないため、太字は描画側の合成になります。
+置き換え時は、src/ViMarkdown/ViMarkdown.csprojのコピー対象、
+src/ViMarkdown/LocalFontCollection.csの読み込むTTF、Typography.csのファミリー名、
+D2Renderer.csのCLIフォント指定を、新しいフォントに合わせて変更してください。
+ファイル名だけをMigMixの名前に変更して置き換えないでください。

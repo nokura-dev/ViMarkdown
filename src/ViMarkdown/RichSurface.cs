@@ -52,7 +52,7 @@ public sealed class RichSurface : Control
     private string? _source;
     private DisplayNavigation _navigation = new("", []);
     private double _layoutWidth;
-    private readonly Dictionary<string, MermaidResult> _diagrams = [];
+    private readonly Dictionary<string, D2Result> _diagrams = [];
     private int _generation;
     public Func<string, byte[]?>? ImageResolver { get; set; }
     public int Caret { get; set; }
@@ -72,7 +72,7 @@ public sealed class RichSurface : Control
             _navigation = new DisplayNavigation(source, _units);
             _diagrams.Clear();
             var generation = ++_generation;
-            foreach (var code in _units.Where(u => u.MermaidCode is not null).Select(u => u.MermaidCode!).Distinct())
+            foreach (var code in _units.Where(u => u.D2Code is not null).Select(u => u.D2Code!).Distinct())
                 _ = LoadDiagram(code, generation);
             ResetLayout();
             InvalidateMeasure();
@@ -82,7 +82,7 @@ public sealed class RichSurface : Control
 
     private async Task LoadDiagram(string code, int generation)
     {
-        var result = await MermaidRenderer.Shared.RenderAsync(code).ConfigureAwait(false);
+        var result = await D2Renderer.Shared.RenderAsync(code).ConfigureAwait(false);
         Dispatcher.UIThread.Post(() =>
         {
             if (generation != _generation) return;
@@ -109,7 +109,7 @@ public sealed class RichSurface : Control
             _layout = new RichTextLayout(_units, textWidth, ImageResolver,
                 // Larger runs retain automatic height so headings and checkboxes fit.
                 lineHeight: _units.All(unit => unit.Size <= Typography.Body) ? BodyLineHeight : double.NaN,
-                mermaidResolver: code => _diagrams.GetValueOrDefault(code));
+                d2Resolver: code => _diagrams.GetValueOrDefault(code));
         }
         return _layout;
     }

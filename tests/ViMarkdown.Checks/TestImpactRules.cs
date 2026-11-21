@@ -12,7 +12,7 @@ internal static class TestImpactRules
         nameof(WorkspacePaneChecks), nameof(HistoryChecks), nameof(VimCommandChecks),
         nameof(MovementAuditChecks), nameof(LineEndEditingChecks), nameof(ParagraphNavigationChecks), nameof(ScrollChecks)
     ];
-    private static readonly string[] Exports = [nameof(ExportChecks), nameof(DocxChecks), nameof(MermaidChecks)];
+    private static readonly string[] Exports = [nameof(ExportChecks), nameof(DocxChecks), nameof(D2Checks)];
     private static readonly Dictionary<string, string[]> Sources = BuildSources();
 
     private static Dictionary<string, string[]> BuildSources()
@@ -31,6 +31,7 @@ internal static class TestImpactRules
         Add(GuiSuites.Concat([nameof(TrashChecks)]).Distinct().ToArray(), "WorkspaceTrash");
         Add([nameof(WorkspaceSearchChecks)], "WorkspaceSearch");
         Add(GuiSuites, "WorkspaceSearchView", "WorkspaceSearchNavigation", "SearchHighlight");
+        Add([nameof(D2Checks), nameof(D2PolicyChecks)], "D2Renderer", "D2Policy");
         Add(Exports, "MarkdownExport", "ExportFileNames");
         Add([nameof(DocxChecks)], "DocxExport");
         // Shared layout, projection, persistence, initialization, and rendering files

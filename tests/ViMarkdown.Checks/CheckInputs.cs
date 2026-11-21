@@ -16,7 +16,7 @@ internal static class CheckInputs
         throw new InvalidOperationException("ソースのルートが見つかりません。作業フォルダから実行してください。");
     }
 
-    public static CheckSnapshot Capture(string root, bool mermaid)
+    public static CheckSnapshot Capture(string root, bool d2)
     {
         var files = Paths(root).Order(StringComparer.Ordinal).ToDictionary(path =>
             Path.GetRelativePath(root, path).Replace('\\', '/'), path => Hash(File.ReadAllBytes(path)), StringComparer.Ordinal);
@@ -26,10 +26,8 @@ internal static class CheckInputs
             RuntimeInformation.ProcessArchitecture, RuntimeInformation.FrameworkDescription,
             assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration,
             SdkVersion(root), File.Exists(dependencies) ? Hash(File.ReadAllBytes(dependencies)) : "no-deps",
-            "mermaid=" + mermaid,
-            Environment.GetEnvironmentVariable("VIMARKDOWN_NODE"),
-            Environment.GetEnvironmentVariable("VIMARKDOWN_MERMAID_CLI"),
-            Environment.GetEnvironmentVariable("VIMARKDOWN_CHROME"));
+            "d2=" + d2,
+            File.Exists(ViMarkdown.RuntimeAssets.D2Executable) ? Hash(File.ReadAllBytes(ViMarkdown.RuntimeAssets.D2Executable)) : "no-d2");
         return new(Hash(Encoding.UTF8.GetBytes(context)), files);
     }
 
@@ -63,9 +61,9 @@ internal static class CheckInputs
     {
         foreach (var directory in new[] { "src", "tests", "scripts", ".github" })
             foreach (var path in Walk(Path.Combine(root, directory))) yield return path;
-        var tools = Path.Combine(root, "tools", "mermaid");
+        var tools = Path.Combine(root, "tools", "d2");
         if (Directory.Exists(tools))
-            foreach (var path in Directory.EnumerateFiles(tools, "package*.json")) yield return path;
+            foreach (var path in Walk(tools)) yield return path;
         var fixture = Path.Combine(root, "docs", "markdown-features-sample.md");
         if (File.Exists(fixture)) yield return fixture;
         foreach (var path in Directory.EnumerateFiles(root))

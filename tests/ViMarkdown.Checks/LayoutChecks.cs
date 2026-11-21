@@ -8,7 +8,7 @@ using ViMarkdown;
 
 internal static class LayoutChecks
 {
-    private const string mixed = "# Markdownエディタ 技術検証\n\nこれは **太字** と *斜体*、`inline code` の表示テストです。\n\n日本語 English 👩‍💻 é 日本語\n\n操作 h j k l と Esc と Mermaid を確認します。";
+    private const string mixed = "# Markdownエディタ 技術検証\n\nこれは **太字** と *斜体*、`inline code` の表示テストです。\n\n日本語 English 👩‍💻 é 日本語\n\n操作 h j k l と Esc と D2 を確認します。";
 
     public static void Run(Action<bool, string> check, string? renderPath)
     {
@@ -18,15 +18,15 @@ internal static class LayoutChecks
             ("bold", FontWeight.Bold)
         })
         {
-            using var asset = AssetLoader.Open(new Uri($"avares://ViMarkdown/Assets/Fonts/MigMix1M/migmix-1m-{file}.ttf"));
+            using var asset = File.OpenRead(Path.Combine(RuntimeAssets.FontDirectory, $"migmix-1m-{file}.ttf"));
             var actualHash = Convert.ToHexString(SHA256.HashData(asset));
             // Compare against the upstream font, not the host's installed fonts.
             var source = Path.Combine(CheckInputs.FindRoot(), "src", "ViMarkdown", "Assets", "Fonts", "MigMix1M", $"migmix-1m-{file}.ttf");
             using var original = File.OpenRead(source);
-            check(actualHash == Convert.ToHexString(SHA256.HashData(original)), $"{file}の埋め込みフォントは元のTTFと一致する");
+            check(actualHash == Convert.ToHexString(SHA256.HashData(original)), $"{file}の外部共有フォントは元のTTFと一致する");
             var face = new Typeface(Typography.BodyFont, weight: weight).GlyphTypeface;
             check(face.FamilyName == "MigMix 1M" && face.Weight == weight && face.FontSimulations == FontSimulations.None,
-                $"{file}は同梱MigMix 1Mの実際のウェイトを使用する（代替・疑似太字なし）");
+                $"{file}は同梱MigMix 1Mの実際のウェイトを使用する（代替・疑似太字なし）: {face.FamilyName}, {face.Weight}, {face.FontSimulations}");
             check("Agjpqy日本語更新日時".All(c => face.TryGetGlyph(c, out var glyph) && glyph != 0),
                 $"{file}は日本語・英数字を代替フォントなしで表示できる");
         }

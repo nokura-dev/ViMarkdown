@@ -12,11 +12,11 @@ internal sealed class CheckOptions
     public bool All { get; private set; }
     public bool Affected { get; private set; }
     public bool DryRun { get; private set; }
-    public bool Mermaid { get; private set; }
+    public bool D2 { get; private set; }
     public HashSet<string> Suites { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Renders { get; } = new(StringComparer.Ordinal);
     public IEnumerable<string> RequiredSuites => Renders.Keys.Select(key => RenderSuites[key])
-        .Concat(Mermaid ? [nameof(MermaidChecks)] : []);
+        .Concat(D2 ? [nameof(D2Checks)] : []);
     public string? RenderPath(string option) => Renders.GetValueOrDefault(option);
 
     public static CheckOptions Parse(string[] args)
@@ -35,7 +35,7 @@ internal sealed class CheckOptions
                 case "--all": result.All = true; break;
                 case "--affected": result.Affected = true; break;
                 case "--dry-run": result.DryRun = true; break;
-                case "--mermaid": result.Mermaid = true; break;
+                case "--d2": result.D2 = true; break;
                 case "--suite":
                     var names = Value().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                     if (names.Length == 0) throw new ArgumentException("--suite にテスト名を指定してください。");
