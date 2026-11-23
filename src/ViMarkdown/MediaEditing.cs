@@ -68,7 +68,7 @@ public sealed partial class MainWindow
     {
         if (_activePageId is null) return;
         var url = _store.AddImage(data);
-        InsertMarkup($"\n\n![画像]({url})\n\n");
+        InsertMarkup($"![画像]({url})\n\n");
     }
 
     private void InsertMarkup(string markup)

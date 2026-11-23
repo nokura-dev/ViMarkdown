@@ -29,7 +29,9 @@ public sealed partial class MainWindow
         // otherwise override their colors, including inside code blocks.
         editor.Options.EnableHyperlinks = false;
         editor.Options.EnableEmailHyperlinks = false;
-        editor.TextArea.TextView.LineTransformers.Add(new LightPlusMarkdown());
+        var markdown = new LightPlusMarkdown();
+        editor.TextArea.TextView.LineTransformers.Add(markdown);
+        editor.TextArea.TextView.BackgroundRenderers.Add(markdown);
         editor.TextArea.TextView.LineTransformers.Add(new SearchHighlight(() => _workspaceSearchRanges));
         var lineNumbers = editor.TextArea.LeftMargins.OfType<AvaloniaEdit.Editing.LineNumberMargin>().Single();
         const double lineNumberGap = 6;

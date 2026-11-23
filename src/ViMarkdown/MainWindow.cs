@@ -14,7 +14,7 @@ public enum EditorMode { Normal, Visual, Insert }
 
 public sealed partial class MainWindow : Window
 {
-    private readonly TextDocument _pageContent = new(Sample);
+    private readonly TextDocument _pageContent = new();
     private readonly TextEditor _editor;
     private readonly SourceNavigation _source;
     private readonly ImeComposition _ime;
@@ -250,30 +250,4 @@ public sealed partial class MainWindow : Window
         var location = _pageContent.GetLocation(Math.Clamp(offset, 0, _pageContent.TextLength));
         _status.Text = _commandPrompt is not null ? _commandPrompt : $"モード: {_mode.ToString().ToUpperInvariant()}{(_vimKeys.Length > 0 ? "  " + _vimKeys : "")}  |  行数:{_pageContent.LineCount}  |  文字数:{_pageContent.TextLength}  |  位置: {location.Column},{location.Line}";
     }
-    private const string Sample = """
-# Markdownエディタ 技術検証
-
-これは **太字** と *斜体*、`inline code` の表示テストです。
-
-日本語入力、絵文字 👩‍💻、結合文字 é を含むページです。
-
-## 操作方法
-
-ノーマルモードでは h j k l または矢印で移動します。
-v でビジュアルモード、i で挿入モード、Esc で戻ります。
-挿入後に戻り、u で変更を取り消せることを確認してください。
-
-この段落は折り返し位置と上下移動を確認するための長い文章です。ウィンドウ幅を狭めて、表示上の行をまたいでもカーソルが原文の位置に対応することを確認します。日本語と English と **装飾された文字列** が混在しています。
-
-```csharp
-Console.WriteLine("Hello, Markdown!");
-```
-
-| 機能 | 操作 |
-| --- | --- |
-| 表 | 挿入モードでセルの原文を編集 |
-| 画像 | Ctrl+V / Cmd+V |
-
-画像はSQLiteに保存されます。D2フェンスの図は同梱CLIで描画します。
-""";
 }

@@ -13,7 +13,7 @@ namespace ViMarkdown;
 
 // Color source spans from the Markdown parser, keeping every delimiter visible.
 // Parse once per document version; cache only the spans needed by each line.
-public sealed class LightPlusMarkdown : DocumentColorizingTransformer
+public sealed class LightPlusMarkdown : DocumentColorizingTransformer, IBackgroundRenderer
 {
     private sealed record Span(int Start, int End, IBrush Foreground, IBrush? Background);
     private readonly Dictionary<int, List<Span>> _lines = [];
@@ -38,17 +38,46 @@ public sealed class LightPlusMarkdown : DocumentColorizingTransformer
     private static readonly IBrush Quote = Brush("#667085");
     private static IBrush Brush(string color) => new ImmutableSolidColorBrush(Color.Parse(color));
 
+    // Text-run backgrounds are drawn with the text, above the selection layer.
+    // Reuse the parsed spans on the background layer so selection stays visible.
+    public KnownLayer Layer => KnownLayer.Background;
+
+    public void Draw(TextView textView, DrawingContext drawingContext)
+    {
+        if (!textView.VisualLinesValid || textView.Document is not { } document) return;
+        EnsureParsed(document);
+        foreach (var visual in textView.VisualLines)
+        {
+            for (var number = visual.FirstDocumentLine.LineNumber;
+                number <= visual.LastDocumentLine.LineNumber; number++)
+            {
+                if (!_lines.TryGetValue(number, out var spans)) continue;
+                foreach (var span in spans)
+                {
+                    if (span.Background is null) continue;
+                    var segment = new SimpleSegment(span.Start, span.End - span.Start);
+                    foreach (var rect in BackgroundGeometryBuilder.GetRectsForSegment(textView, segment))
+                        drawingContext.FillRectangle(span.Background, rect);
+                }
+            }
+        }
+    }
+
+    private void EnsureParsed(TextDocument document)
+    {
+        if (!ReferenceEquals(_document, document) || !ReferenceEquals(_version, document.Version))
+            Parse(document);
+    }
+
     protected override void ColorizeLine(DocumentLine line)
     {
         var document = CurrentContext.Document;
-        if (!ReferenceEquals(_document, document) || !ReferenceEquals(_version, document.Version))
-            Parse(document);
+        EnsureParsed(document);
         if (!_lines.TryGetValue(line.LineNumber, out var spans)) return;
         foreach (var span in spans)
             ChangeLinePart(span.Start, span.End, element =>
             {
                 element.TextRunProperties.SetForegroundBrush(span.Foreground);
-                if (span.Background is not null) element.TextRunProperties.SetBackgroundBrush(span.Background);
                 if (ReferenceEquals(span.Foreground, Code))
                     element.TextRunProperties.SetTypeface(Typography.EditorTypeface);
             });

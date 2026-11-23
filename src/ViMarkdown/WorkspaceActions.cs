@@ -30,8 +30,9 @@ public sealed partial class MainWindow
             {
                 var name = await AskName(anchor, "ノートを作成", "", "作成");
                 if (name is null || !SaveCurrent()) return;
+                OpenPage(null);
                 _noteId = _store.Create(name, true, null);
-                ReloadLists();
+                ReloadLists(openTimelinePage: false);
             }
             else
             {
