@@ -41,8 +41,7 @@ public sealed partial class MainWindow
         if (pane == 0) { _periodButtons[_periodFocus].Focus(); return; }
         if (pane == 3)
         {
-            if (_editor.IsEnabled) FocusEditingSurface();
-            else _paneBodies[pane].Focus();
+            if (_activePageId is not null) FocusEditingSurface();
             return;
         }
         FocusPaneList(pane == 1 ? _notes : pane == 2 ? _pages : _searchResults);

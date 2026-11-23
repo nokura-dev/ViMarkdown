@@ -97,7 +97,8 @@ public sealed partial class MainWindow
         finally
         {
             _rebuilding = false;
-            focusedList?.Focus();
+            if (_activePageId is null) _notes.Focus();
+            else focusedList?.Focus();
         }
     }
     private void OpenPage(long? id)
@@ -113,12 +114,16 @@ public sealed partial class MainWindow
             _caret = 0; _anchor = null; _editor.CaretOffset = 0; _modeSwitchGeneration++;
             _preview.Offset = default; _editor.ScrollToHome();
             _editor.IsEnabled = _rich.IsEnabled = item is not null;
+            _paneBodies[3].IsEnabled = item is not null;
+            _editor.IsVisible = item is not null && _mode == EditorMode.Insert;
+            _preview.IsVisible = item is not null && _mode != EditorMode.Insert;
             Title = item is null ? "ViMarkdown" : FormatPageWindowTitle(item.Name);
             _store.SetSetting("active", _activePageId?.ToString());
             _saveStatus.Text = item is null ? "ページを選択するか、作成してください" : "保存済み";
             Refresh();
         }
         finally { _loading = false; }
+        if (_activePageId is null) _notes.Focus();
     }
     private void ScheduleSave()
     {

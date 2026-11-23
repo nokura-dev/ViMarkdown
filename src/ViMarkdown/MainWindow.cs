@@ -87,7 +87,7 @@ public sealed partial class MainWindow : Window
             _pageContent.UndoStack.EndUndoGroup(); _insertInputGroupOpen = false;
         }, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(KeyDownEvent, HandleVimPromptKey, RoutingStrategies.Tunnel);
-        Opened += (_, _) => { SyncRichContentPadding(); Refresh(); _rich.Focus(); };
+        Opened += (_, _) => { SyncRichContentPadding(); Refresh(); FocusEditingSurface(); };
     }
     private void SyncRichContentPadding()
     {
@@ -126,6 +126,7 @@ public sealed partial class MainWindow : Window
 
     private void SwitchMode(EditorMode mode)
     {
+        if (_activePageId is null) { FocusEditingSurface(); return; }
         _verticalDisplayX = null;
         CancelPendingCommand();
         if (_mode == mode) { FocusEditingSurface(); return; }
@@ -200,6 +201,7 @@ public sealed partial class MainWindow : Window
     }
     private void FocusEditingSurface()
     {
+        if (_activePageId is null) { _notes.Focus(); return; }
         // TextEditor is a focusable wrapper; only TextArea accepts text input.
         if (_mode == EditorMode.Insert) _editor.TextArea.Focus();
         else _rich.Focus();

@@ -78,6 +78,7 @@ public sealed partial class MainWindow
             if (_activePageId.HasValue && !remaining.Any(i => i.Id == _activePageId)) OpenPage(null);
             if (_noteId.HasValue && !remaining.Any(i => i.Id == _noteId)) _noteId = null;
             ReloadLists();
+            if (!notes) FocusPaneList(_pages);
             return Task.CompletedTask;
         });
         return menuActions;
