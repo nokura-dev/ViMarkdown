@@ -1,7 +1,7 @@
-Version: 1.1.0-dev.2
+Version: 1.1.0-dev.3
 Runtime: win-x64
-Source commit: 5ccc998e09def431c0510c6a8a927fb646db2e8a
-Source: https://github.com/nokura-dev/ViMarkdown/tree/5ccc998e09def431c0510c6a8a927fb646db2e8a
-Build date: 2026-11-23 (Asia/Tokyo)
+Source commit: e8375e70383b4c55cf1f776672dfdb6dfbe6fae8
+Source: https://github.com/nokura-dev/ViMarkdown/tree/e8375e70383b4c55cf1f776672dfdb6dfbe6fae8
+Build date: 2026-11-24 (Asia/Tokyo)
 D2: v0.9.0
 Tests: skipped for this publication
