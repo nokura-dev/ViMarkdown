@@ -50,8 +50,6 @@ public sealed partial class MainWindow
     private readonly TextBlock _searchSummary = new() { FontSize = 12, Foreground = WorkspaceColors.Muted };
     private IReadOnlyList<(int Start, int End)> _workspaceSearchRanges = [];
     private string _highlightKeyword = "";
-    private string _lastPageSearch = "";
-    private long? _lastSearchPage;
 
     private Control BuildSearchBox()
     {
@@ -192,12 +190,16 @@ public sealed partial class MainWindow
             if (e.ClickCount != 2 || !e.GetCurrentPoint(_searchResults).Properties.IsLeftButtonPressed) return;
             var row = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>()
                 .FirstOrDefault(c => _searchResults.IndexFromContainer(c) >= 0);
-            if (row?.DataContext is WorkspaceSearchHit hit) NavigateToSearchHit(hit);
+            if (row?.DataContext is WorkspaceSearchHit hit)
+            {
+                NavigateToSearchHit(hit, keepResultsFocus: true);
+                e.Handled = true;
+            }
         }, RoutingStrategies.Bubble, handledEventsToo: true);
         _searchResults.KeyDown += (_, e) =>
         {
             if (e.Key == Key.Enter && _searchResults.SelectedItem is WorkspaceSearchHit hit)
-            { NavigateToSearchHit(hit); e.Handled = true; }
+            { NavigateToSearchHit(hit, keepResultsFocus: true); e.Handled = true; }
         };
         // Keep fixed spacing outside the virtualized list so bringing the
         // first card into view cannot consume the top inset.

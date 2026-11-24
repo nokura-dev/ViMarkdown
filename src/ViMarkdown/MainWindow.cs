@@ -124,12 +124,12 @@ public sealed partial class MainWindow : Window
         finally { _aligningContent = false; }
     }
 
-    private void SwitchMode(EditorMode mode)
+    private void SwitchMode(EditorMode mode, bool focusEditor = true)
     {
-        if (_activePageId is null) { FocusEditingSurface(); return; }
+        if (_activePageId is null) { if (focusEditor) FocusEditingSurface(); return; }
         _verticalDisplayX = null;
         CancelPendingCommand();
-        if (_mode == mode) { FocusEditingSurface(); return; }
+        if (_mode == mode) { if (focusEditor) FocusEditingSurface(); return; }
         if (_mode == EditorMode.Insert) FinishBlockInsert();
         var caretY = CaretWindowY();
         var atDocumentStart = (_mode == EditorMode.Insert
@@ -153,9 +153,9 @@ public sealed partial class MainWindow : Window
         {
             _editor.CaretOffset = _caret;
             _editor.Select(_caret, 0);
-            FocusEditingSurface();
+            if (focusEditor) FocusEditingSurface();
         }
-        else _rich.Focus();
+        else if (focusEditor) _rich.Focus();
         Refresh();
         // Revealing a surface can create its template and change wrapping.
         // Align only after layout, and ignore callbacks from earlier switches.
@@ -165,7 +165,7 @@ public sealed partial class MainWindow : Window
             UpdateLayout();
             SyncRichContentPadding();
             UpdateLayout();
-            FocusEditingSurface();
+            if (focusEditor) FocusEditingSurface();
             if (_mode == EditorMode.Insert)
             {
                 // Reveal the target line before aligning: virtualization initially

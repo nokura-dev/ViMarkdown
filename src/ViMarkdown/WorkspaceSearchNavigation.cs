@@ -6,25 +6,14 @@ namespace ViMarkdown;
 
 public sealed partial class MainWindow
 {
+    private int _searchNavigationGeneration;
     private void RunWorkspaceSearch()
     {
         var keyword = _searchKeyword.Text ?? "";
         if (string.IsNullOrWhiteSpace(keyword)) { _searchKeyword.Focus(); return; }
         var scope = (WorkspaceSearchScope)_searchScope.SelectedIndex;
         var hits = WorkspaceSearch.Find(_store.Items(), scope, _noteId, _activePageId, keyword, _pageContent.Text);
-        if (scope == WorkspaceSearchScope.CurrentPage)
-        {
-            _searchResultsPane.IsVisible = false;
-            if (hits.Count == 0) { ClearWorkspaceHighlights(); _saveStatus.Text = "一致するキーワードがありません。"; return; }
-            var matches = WorkspaceSearch.Matches(_pageContent.Text, keyword);
-            var caret = _mode == EditorMode.Insert ? _editor.CaretOffset : _caret;
-            var repeat = _lastPageSearch == keyword && _lastSearchPage == _activePageId;
-            var next = matches.FirstOrDefault(m => repeat ? m.Start > caret : m.Start >= caret, matches[0]);
-            _lastPageSearch = keyword; _lastSearchPage = _activePageId;
-            JumpToSearchOffset(next.Start, keyword);
-            return;
-        }
-        _lastPageSearch = "";
+        if (hits.Count == 0) ClearWorkspaceHighlights();
         _searchResults.ItemsSource = hits;
         _searchResultsPane.IsVisible = true;
         _searchSummary.Text = hits.Count == 0 ? "一致する結果がありません。" : $"「{keyword}」 — {hits.Count}行";
@@ -38,7 +27,7 @@ public sealed partial class MainWindow
         FocusPaneList(_searchResults);
     }
 
-    private void NavigateToSearchHit(WorkspaceSearchHit hit)
+    private void NavigateToSearchHit(WorkspaceSearchHit hit, bool keepResultsFocus)
     {
         if (!SaveCurrent()) return;
         var items = _store.Items();
@@ -51,13 +40,13 @@ public sealed partial class MainWindow
         _noteId = page.NoteId;
         if (_activePageId != page.Id) OpenPage(page.Id);
         ReloadLists();
-        JumpToSearchOffset(match.Offset, hit.Keyword);
+        JumpToSearchOffset(match.Offset, hit.Keyword, keepResultsFocus);
     }
 
-    private void JumpToSearchOffset(int offset, string keyword)
+    private void JumpToSearchOffset(int offset, string keyword, bool keepResultsFocus)
     {
         CancelPendingCommand(); _commandPrompt = null; _promptOpeningText = null;
-        if (_mode == EditorMode.Visual) SwitchMode(EditorMode.Normal);
+        if (_mode == EditorMode.Visual) SwitchMode(EditorMode.Normal, focusEditor: !keepResultsFocus);
         _anchor = null;
         _caret = offset;
         _editor.Select(offset, 0);
@@ -68,14 +57,44 @@ public sealed partial class MainWindow
         // Keep the exact source offset even when matching Markdown delimiters.
         _caret = offset; _rich.Caret = offset;
         _rich.InvalidateVisual(); _editor.TextArea.TextView.Redraw();
-        FocusEditingSurface();
+        if (keepResultsFocus) _searchResults.Focus();
+        else FocusEditingSurface();
         var page = _activePageId;
+        var navigation = ++_searchNavigationGeneration;
+        var modeSwitch = _modeSwitchGeneration;
         Dispatcher.UIThread.Post(() =>
         {
-            if (_activePageId != page || _highlightKeyword != keyword) return;
+            if (navigation != _searchNavigationGeneration || _activePageId != page ||
+                _highlightKeyword != keyword || _modeSwitchGeneration != modeSwitch) return;
+            SyncRichContentPadding();
             UpdateLayout();
-            if (_mode == EditorMode.Insert) _editor.TextArea.Caret.BringCaretToView();
-            else _rich.BringCaretIntoView();
+            // Bringing the whole rich surface into view can clamp the request to
+            // its old viewport. Use document coordinates after layout instead.
+            // A scroll can also change scrollbar width and wrapping, so settle
+            // the layout before computing the final position.
+            for (var pass = 0; pass < 4; pass++)
+            {
+                if (_mode == EditorMode.Insert)
+                {
+                    _editor.TextArea.Caret.BringCaretToView();
+                    UpdateLayout();
+                    var view = _editor.TextArea.TextView;
+                    var scroll = view.GetVisualAncestors().OfType<ScrollViewer>().First();
+                    var caret = view.GetVisualPosition(_editor.TextArea.Caret.Position,
+                        AvaloniaEdit.Rendering.VisualYPosition.LineMiddle);
+                    scroll.Offset = new Avalonia.Vector(scroll.Offset.X,
+                        Math.Clamp(caret.Y - scroll.Viewport.Height / 2, 0,
+                            Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height)));
+                }
+                else
+                {
+                    var caret = _rich.CaretBounds;
+                    _preview.Offset = new Avalonia.Vector(_preview.Offset.X,
+                        Math.Clamp(caret.Center.Y - _preview.Viewport.Height / 2, 0,
+                            Math.Max(0, _preview.Extent.Height - _preview.Viewport.Height)));
+                }
+                UpdateLayout();
+            }
         }, DispatcherPriority.Loaded);
     }
 

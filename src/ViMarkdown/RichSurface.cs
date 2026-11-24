@@ -128,6 +128,7 @@ public sealed class RichSurface : Control
         context.FillRectangle(BackgroundBrush, new Rect(Bounds.Size));
         using (context.PushTransform(Matrix.CreateTranslation(ContentOrigin.X, ContentOrigin.Y)))
         {
+            layout.DrawBackground(context);
             foreach (var range in SearchRanges)
                 foreach (var rect in layout.SelectionBounds(range.Start, range.End))
                     context.FillRectangle(WorkspaceColors.SearchMatch, rect);

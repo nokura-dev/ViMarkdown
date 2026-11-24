@@ -50,7 +50,6 @@ public sealed class RichTextLayout : IDisposable
                 previousStyle.Bold ? FontWeight.Bold : FontWeight.Normal);
             styles.Add(new ValueSpan<TextRunProperties>(styleStart, text.Length - styleStart,
                 new GenericTextRunProperties(typeface, previousStyle.Size,
-                    backgroundBrush: previousStyle.Code ? WorkspaceColors.CodeBackground : null,
                     baselineAlignment: previousStyle.TaskOffset.HasValue ? BaselineAlignment.Center : BaselineAlignment.Baseline,
                     foregroundBrush: previousStyle.LinkUrl is not null ? WorkspaceColors.Accent : previousStyle.Code ? WorkspaceColors.Code : WorkspaceColors.Text,
                     textDecorations: previousStyle.Strike && previousStyle.LinkUrl is not null
@@ -207,6 +206,18 @@ public sealed class RichTextLayout : IDisposable
                 return bottom - _lineShifts[i] - .001;
         }
         return y - _lineShifts[^1];
+    }
+
+    public void DrawBackground(DrawingContext context)
+    {
+        foreach (var item in _mapping.Where(m => m.Unit.Code))
+            foreach (var rect in TextRangeBounds(item.Start, item.Length))
+                context.FillRectangle(WorkspaceColors.CodeBackground, rect);
+        foreach (var obj in _objects.Where(o => o.Unit.Table is not null))
+            foreach (var (cell, bounds) in obj.Cells)
+                using (context.PushTransform(Matrix.CreateTranslation(bounds.X + 8,
+                    TextBounds(obj.Offset).Y + bounds.Y + CellTop(cell, bounds))))
+                    cell.DrawBackground(context);
     }
 
     public void Draw(DrawingContext context)
