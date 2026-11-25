@@ -38,12 +38,12 @@
 
 GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。各GitブランチでビルドしたZIPを、そのブランチの `macos/`・`windows/` 直下へ配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
 
-このdevelopブランチのD2対応開発版は **1.1.0-dev.3** です。
+このdevelopブランチのD2対応開発版は **1.1.0-dev.4** です。
 
 | 開発版の対象 | ダウンロード |
 |---|---|
-| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-dev.3-osx-arm64.zip](macos/ViMarkdown-1.1.0-dev.3-osx-arm64.zip) |
-| Windows x64 | [ViMarkdown-1.1.0-dev.3-win-x64.zip](windows/ViMarkdown-1.1.0-dev.3-win-x64.zip) |
+| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-dev.4-osx-arm64.zip](macos/ViMarkdown-1.1.0-dev.4-osx-arm64.zip) |
+| Windows x64 | [ViMarkdown-1.1.0-dev.4-win-x64.zip](windows/ViMarkdown-1.1.0-dev.4-win-x64.zip) |
 
 各OSフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。正式版は[mainブランチ](https://github.com/nokura-dev/ViMarkdown/tree/main)から取得してください。このdevelopブランチには開発版のみ配置します。
 
@@ -62,7 +62,7 @@ dotnet restore src/ViMarkdown --packages .nuget/packages
 dotnet run --project src/ViMarkdown --no-restore
 ```
 
-Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。開発版のVersionは1.1.0-dev.3です。D2は起動前に対象OS用CLIを準備してください。
+Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。開発版のVersionは1.1.0-dev.4です。D2は起動前に対象OS用CLIを準備してください。
 
 ## 最初のページを書く
 
@@ -503,7 +503,7 @@ GitHub Actionsの `Packages` を手動実行すると、macOS ARM64・Windows x6
 
 ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は1.1に向けた開発用ブランチです。各ブランチでビルドしたZIPだけを、そのブランチのOS別フォルダ直下に置きます。developにはmainの正式版ZIPを混在させず、branchサブフォルダも作りません。
 
-開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。現在は1.1.0-dev.3、次回は1.1.0-dev.4です。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。2026年11月21日の配置変更はユーザー指定により1.1.0-dev.1のまま、再ビルドせず行いました。
+開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。現在は1.1.0-dev.4、次回は1.1.0-dev.5です。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。2026年11月21日の配置変更はユーザー指定により1.1.0-dev.1のまま、再ビルドせず行いました。
 
 ```text
 ViMarkdown/                      # 公開用リポジトリのルート
@@ -515,16 +515,16 @@ ViMarkdown/                      # 公開用リポジトリのルート
 ├── docs/
 ├── tools/
 ├── macos/
-│   ├── ViMarkdown-1.1.0-dev.3-osx-arm64.zip
+│   ├── ViMarkdown-1.1.0-dev.4-osx-arm64.zip
 │   ├── SHA256SUMS
 │   └── BUILD-INFO.txt
 └── windows/
-    ├── ViMarkdown-1.1.0-dev.3-win-x64.zip
+    ├── ViMarkdown-1.1.0-dev.4-win-x64.zip
     ├── SHA256SUMS
     └── BUILD-INFO.txt
 ```
 
-例えばdevelopの `build/ViMarkdown-1.1.0-dev.3-osx-arm64.zip` は、`macos/ViMarkdown-1.1.0-dev.3-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。開発版にはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。mainの正式版は別ブランチで保持します。
+例えばdevelopの `build/ViMarkdown-1.1.0-dev.4-osx-arm64.zip` は、`macos/ViMarkdown-1.1.0-dev.4-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。開発版にはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。mainの正式版は別ブランチで保持します。
 
 現在のパッケージ生成スクリプトが行うのはローカルのZIP生成までです。配布先へのコピー・リネームとGitHubへの反映は別途行います。テストは明示的に依頼された場合に実行し、CIで実行する場合は `--all` を使用します。
 
@@ -541,7 +541,7 @@ ViMarkdown/                      # 公開用リポジトリのルート
 
 開発版1.1.0-dev.1ではD2描画・外部共有フォント・参照制限を導入しました。macOS上で実CLIを含む34スイート・2,565チェックの成功を確認した後、診断表示の余白を修正しています。余白修正後および今回の配布ビルドではテストをスキップしています。Windows版は利用者から動作OKの確認を受けています。今回生成したZIPそれぞれの実機インストール・画面操作を網羅確認したものではありません。
 
-開発版1.1.0-dev.3では、Ctrl+F／Ctrl+Shift+Fの検索範囲、ページ内検索の結果一覧、検索結果からの中央スクロールと一覧フォーカス維持、ビジュアルモードでのコード選択表示を修正し、診断ログ設定とmacOSの英数キー合成送信を除去しました。今回の配布ビルドではテストを省略し、両OSの実機での起動・操作確認は未実施です。
+開発版1.1.0-dev.4では、バッククォート3つの入力直後など、本文が空のコードフェンスで例外が発生する不具合を修正しました。D2画像の下側の追加余白と行高単位の切り上げ余白を除去し、PNG内側余白を5に設定しました。原文の空行はD2フェンス間を含め最大1行表示し、重複する終端改行は追加しません。今回の配布ではテストを省略し、両OSの実機での起動・操作確認は未実施です。
 
 Developer ID署名・公証とWindowsコード署名は未実施です。macOS版はアドホック署名です。1.0.1の正式版ZIPは変更していません。
 

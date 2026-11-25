@@ -180,6 +180,8 @@ public static class Projection
                 ? group.Cast<Block>() : new[] { block }).OrderBy(block => block.Span.Start);
             foreach (var block in orderedBlocks)
             {
+                // Preserve up to one source blank line, including between D2
+                // fences. Object line terminators are handled separately below.
                 if (previous is not null) AddSourceGap(previous, block.Span.Start);
                 var contentStart = output.Count;
                 if (block is ThematicBreakBlock)
@@ -237,8 +239,10 @@ public static class Projection
                     output.Add(new("", block.Span.Start, block.Span.End + 1, D2Code: D2Renderer.Code(d2)));
                 else if (block is CodeBlock code)
                 {
-                    foreach (var line in code.Lines.Lines.Take(code.Lines.Count))
+                    // Empty fences have no backing array for their content lines.
+                    for (var i = 0; i < code.Lines.Count; i++)
                     {
+                        var line = code.Lines.Lines[i];
                         Add(line.Slice.ToString(), line.Slice.Start, Typography.Code, code: true);
                         Add("\n", Math.Min(source.Length, line.Slice.End + 1));
                     }
@@ -274,8 +278,9 @@ public static class Projection
                 }
                 // Horizontal rules already reserve and terminate one visual line
                 // in RichTextLayout. Another newline would add a synthetic blank.
+                // D2 objects reserve complete lines in RichTextLayout as well.
                 // Code lines and nested blocks also already terminate their output.
-                if (output.Count > 0 && !output[^1].Rule && !output[^1].Text.EndsWith('\n'))
+                if (output.Count > 0 && !output[^1].Rule && output[^1].D2Code is null && !output[^1].Text.EndsWith('\n'))
                     Add("\n", Math.Min(source.Length, block.Span.End + 1));
                 if ((block is HeadingBlock { IsSetext: false, Level: <= 3 } ||
                     block is ListBlock && blocks is not ListItemBlock) && output.Count > contentStart)

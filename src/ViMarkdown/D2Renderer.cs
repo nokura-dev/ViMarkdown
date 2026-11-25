@@ -95,7 +95,7 @@ public sealed class D2Renderer
             start.Environment["TEMP"] = directory;
             start.Environment["TMP"] = directory;
             start.Environment["TMPDIR"] = directory;
-            foreach (var arg in new[] { "--layout=dagre", "--theme=1", "--target=", "--scale=0.5", "--pad=24", "--timeout=40" })
+            foreach (var arg in new[] { "--layout=dagre", "--theme=1", "--target=", "--scale=0.5", "--pad=5", "--timeout=40" })
                 start.ArgumentList.Add(arg);
             foreach (var font in new[] { "regular", "italic", "bold", "semibold", "mono", "mono-italic", "mono-bold", "mono-semibold" })
             {

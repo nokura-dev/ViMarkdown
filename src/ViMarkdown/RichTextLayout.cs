@@ -39,7 +39,7 @@ public sealed class RichTextLayout : IDisposable
         var objectLineHeight = bodyLine.TextLines[0].Height;
         var text = new StringBuilder();
         var styles = new List<ValueSpan<TextRunProperties>>();
-        var diagnosticBlocks = new List<(int Offset, int Length, double Height, bool TrimFollowingGap)>();
+        var exactHeightBlocks = new List<(int Offset, int Length, double Height, bool TrimFollowingGap)>();
         DisplayUnit? previousStyle = null;
         var styleStart = 0;
         void FinishStyle()
@@ -97,7 +97,7 @@ public sealed class RichTextLayout : IDisposable
                         if (bitmap is not null)
                         {
                             imageSize = ImageContent.DisplaySize(bitmap, data!, Math.Max(1, _width - ImageLeftPadding));
-                            height = imageSize.Height + 12;
+                            height = imageSize.Height + (unit.D2Code is null ? 12 : 0);
                         }
                     }
                     catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException) { }
@@ -111,7 +111,11 @@ public sealed class RichTextLayout : IDisposable
                 var objectLines = (int)Math.Ceiling(height / objectLineHeight);
                 var reservedHeight = objectLines * objectLineHeight;
                 if (error is not null)
-                    diagnosticBlocks.Add((text.Length, objectLines, height, !pending));
+                    exactHeightBlocks.Add((text.Length, objectLines, height, !pending));
+                else if (unit.D2Code is not null && bitmap is not null)
+                    // Match D2 images to their displayed height without bottom
+                    // padding or rounding up to a whole text line.
+                    exactHeightBlocks.Add((text.Length, objectLines, height, false));
                 else
                     height = reservedHeight;
                 _objects.Add(new(unit, text.Length, height, bitmap, imageSize, cells, error, pending));
@@ -134,7 +138,7 @@ public sealed class RichTextLayout : IDisposable
             textStyleOverrides: styles);
         var lines = Layout.TextLines;
         _lineHeights = lines.Select(line => line.Height).ToArray();
-        foreach (var block in diagnosticBlocks)
+        foreach (var block in exactHeightBlocks)
         {
             var first = Layout.GetLineIndexFromCharacterIndex(block.Offset, false);
             var last = Layout.GetLineIndexFromCharacterIndex(block.Offset + block.Length - 1, false);

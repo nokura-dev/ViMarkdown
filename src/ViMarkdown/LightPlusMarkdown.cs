@@ -146,9 +146,11 @@ public sealed class LightPlusMarkdown : DocumentColorizingTransformer, IBackgrou
                         // All languages, including D2, use the same code color.
                         // An unfinished fence can have a span ending at its opener
                         // while its content lines already extend to end-of-document.
-                        var codeEnd = code.Lines.Lines.Take(code.Lines.Count)
-                            .Select(l => l.Slice.End + 1).DefaultIfEmpty(code.Span.End + 1).Max();
-                        Paint(code.Span.Start, Math.Max(code.Span.End + 1, codeEnd), Code, CodeBackground);
+                        var codeEnd = code.Span.End + 1;
+                        // The backing array is null until the first content line.
+                        for (var i = 0; i < code.Lines.Count; i++)
+                            codeEnd = Math.Max(codeEnd, code.Lines.Lines[i].Slice.End + 1);
+                        Paint(code.Span.Start, codeEnd, Code, CodeBackground);
                         continue;
                     case HeadingBlock { IsSetext: true } underlined:
                         if (underlined.Level == 2)
