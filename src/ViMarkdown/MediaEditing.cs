@@ -49,7 +49,7 @@ public sealed partial class MainWindow
     {
         AddHandler(KeyDownEvent, async (_, e) =>
         {
-            if (_commandPrompt is null && (_editor.IsKeyboardFocusWithin || _rich.IsKeyboardFocusWithin) && e.Key == Key.V &&
+            if (!_isSlideshow && _commandPrompt is null && (_editor.IsKeyboardFocusWithin || _rich.IsKeyboardFocusWithin) && e.Key == Key.V &&
                 (e.KeyModifiers == KeyModifiers.Meta || (_mode == EditorMode.Insert && e.KeyModifiers == KeyModifiers.Control)))
             {
                 e.Handled = true;
@@ -68,7 +68,7 @@ public sealed partial class MainWindow
             // Prefer encoded PNG: bitmap decoding discards its DPI metadata.
             var format = OperatingSystem.IsMacOS() ? "public.png" : OperatingSystem.IsWindows() ? "PNG" : "image/png";
             var png = await Clipboard.TryGetValueAsync(DataFormat.CreateBytesPlatformFormat(format));
-            if (id != _activePageId || before != _pageContent.Text) return;
+            if (_isSlideshow || id != _activePageId || before != _pageContent.Text) return;
             if (png is not null && png.AsSpan().StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
             {
                 InsertEncodedImage(png, ImageContent.ClipboardDpi(png, OperatingSystem.IsMacOS()));
@@ -76,14 +76,14 @@ public sealed partial class MainWindow
             }
             var tiff = OperatingSystem.IsMacOS()
                 ? await Clipboard.TryGetValueAsync(DataFormat.CreateBytesPlatformFormat("public.tiff")) : null;
-            if (id != _activePageId || before != _pageContent.Text) return;
+            if (_isSlideshow || id != _activePageId || before != _pageContent.Text) return;
             using var bitmap = await Clipboard.TryGetBitmapAsync();
-            if (id != _activePageId || before != _pageContent.Text) return;
+            if (_isSlideshow || id != _activePageId || before != _pageContent.Text) return;
             if (bitmap is not null) InsertImage(bitmap, ImageContent.ClipboardDpi(tiff, OperatingSystem.IsMacOS()));
             else
             {
                 var text = await Clipboard.TryGetTextAsync();
-                if (id == _activePageId && before == _pageContent.Text && text is not null) InsertMarkup(text);
+                if (!_isSlideshow && id == _activePageId && before == _pageContent.Text && text is not null) InsertMarkup(text);
             }
         }
         catch (Exception ex) { _saveStatus.Text = "貼り付け失敗: " + ex.Message; }

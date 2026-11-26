@@ -78,6 +78,9 @@ public sealed partial class MainWindow
         // This is a timeline navigation item, rather than a toolbar action.
         trash.Focusable = true;
         trash.IsTabStop = true;
+        // Open on the initial press, before focus/activation changes on Windows
+        // can interrupt the release that normally triggers the button's click.
+        trash.ClickMode = ClickMode.Press;
         trash.Name = "TrashButton";
         trash.Width = 63;
         trash.Height = 54;

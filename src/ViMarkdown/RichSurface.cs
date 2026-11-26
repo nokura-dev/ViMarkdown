@@ -60,6 +60,7 @@ public sealed class RichSurface : Control
     private IPointer? _resizePointer;
     private static readonly Cursor ImageResizeCursor = new(StandardCursorType.BottomRightCorner);
     public Func<string, byte[]?>? ImageResolver { get; set; }
+    public bool IsPresentation { get; set; }
     public int Caret { get; set; }
     public int? Anchor { get; set; }
     public IReadOnlyList<(int Start, int End)> SearchRanges { get; set; } = [];
@@ -81,6 +82,7 @@ public sealed class RichSurface : Control
         imageMenu.Closed += (_, _) => contextImage = null;
         ContextRequested += (_, e) =>
         {
+            if (IsPresentation) { e.Handled = true; return; }
             if (!e.TryGetPosition(this, out var position)) return;
             var point = new Point(position.X - ContentOrigin.X, position.Y - ContentOrigin.Y);
             var image = EnsureLayout(Bounds.Width).ImageAt(point);
@@ -185,7 +187,7 @@ public sealed class RichSurface : Control
         using (context.PushTransform(Matrix.CreateTranslation(ContentOrigin.X, ContentOrigin.Y)))
         {
             layout.DrawBackground(context, viewport);
-            foreach (var range in SearchRanges)
+            foreach (var range in IsPresentation ? Array.Empty<(int Start, int End)>() : SearchRanges)
                 foreach (var rect in layout.SelectionBounds(range.Start, range.End))
                     context.FillRectangle(WorkspaceColors.SearchMatch, rect);
             foreach (var range in SelectionRanges ?? (Anchor.HasValue ? new[] { (Anchor.Value, Caret) } : Array.Empty<(int, int)>()))
@@ -195,7 +197,8 @@ public sealed class RichSurface : Control
             foreach (var image in layout.ResizableImages())
                 if (image.Bounds.Intersects(viewport))
                     context.DrawRectangle(WorkspaceColors.Editor, new Pen(WorkspaceColors.Accent), ImageResizeHandle(image.Bounds));
-            context.FillRectangle(WorkspaceColors.Accent, layout.CaretBounds(Caret));
+            if (!IsPresentation)
+                context.FillRectangle(WorkspaceColors.Accent, layout.CaretBounds(Caret));
         }
     }
 
@@ -301,6 +304,7 @@ public sealed class RichSurface : Control
                 return;
             }
         }
+        if (IsPresentation) { e.Handled = true; return; }
         var interactive = layout.InteractiveAt(point);
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && interactive?.TaskOffset is int offset)
             TaskToggled?.Invoke(offset);

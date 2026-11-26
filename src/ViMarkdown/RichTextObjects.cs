@@ -45,8 +45,7 @@ public sealed partial class RichTextLayout
                 if (bitmap is not null)
                 {
                     imageSize = ImageContent.DisplaySize(bitmap, data!, Math.Max(1, _width - ImageLeftPadding));
-                    if (unit.ImageUrl is not null && unit.D2Code is null &&
-                        _imageWidths?.TryGetValue(unit.Start, out var temporaryWidth) == true)
+                    if (_imageWidths?.TryGetValue(unit.Start, out var temporaryWidth) == true)
                     {
                         var width = Math.Clamp(temporaryWidth, 1, Math.Max(1, _width - ImageLeftPadding));
                         imageSize = new Size(width, width * bitmap.PixelSize.Height / bitmap.PixelSize.Width);
@@ -90,7 +89,8 @@ public sealed partial class RichTextLayout
     public IEnumerable<(int Offset, Rect Bounds)> ResizableImages()
     {
         foreach (var obj in _objects)
-            if (obj.Image is not null && obj.Unit.ImageUrl is not null && obj.Unit.D2Code is null)
+            if (obj.Image is not null && obj.Error is null &&
+                (obj.Unit.ImageUrl is not null || obj.Unit.D2Code is not null))
                 yield return (obj.Unit.Start, new Rect(new Point(ImageLeftPadding, obj.Top), obj.ImageSize));
     }
 }

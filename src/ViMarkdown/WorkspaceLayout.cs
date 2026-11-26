@@ -34,6 +34,7 @@ public sealed partial class MainWindow
         // leave space for the editor, including after resizing the window.
         void UpdatePaneLimits()
         {
+            if (_isSlideshow) return;
             MinWidth = MinimumWorkspaceWidth + (_searchResultsPane.IsVisible ? MinimumSearchResultsWidth : 0);
             if (Width < MinWidth) Width = MinWidth;
             if (grid.Bounds.Width <= 0) return;

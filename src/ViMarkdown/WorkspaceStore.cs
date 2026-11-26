@@ -102,6 +102,8 @@ public sealed partial class WorkspaceStore : IDisposable
         transaction.Commit();
     }
     public void Restore(long id) => Execute("UPDATE items SET deleted_at=NULL WHERE id=$id AND is_note=0 AND deleted_at IS NOT NULL", ("$id", id));
+    public void PermanentlyDelete(long id) => Execute(
+        "DELETE FROM items WHERE id=$id AND is_note=0 AND deleted_at IS NOT NULL", ("$id", id));
     public void MovePage(long id, long? noteId)
         => MovePages([id], noteId);
 

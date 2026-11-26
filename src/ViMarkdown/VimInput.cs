@@ -21,6 +21,7 @@ public sealed partial class MainWindow
 
     private void HandleVimPromptKey(object? sender, KeyEventArgs e)
     {
+        if (HandleSlideshowKey(e)) return;
         if (HandlePaneNavigation(e)) return;
         HandleWorkspaceShortcut(sender, e);
         if (e.Handled) return;
@@ -52,6 +53,7 @@ public sealed partial class MainWindow
     }
     private void HandleVimText(object? sender, TextInputEventArgs e)
     {
+        if (_isSlideshow) { e.Handled = true; return; }
         if (!_editor.IsKeyboardFocusWithin && !_rich.IsKeyboardFocusWithin) return;
         if (_pendingLayoutKey is { } pending && !string.IsNullOrEmpty(e.Text))
         {
@@ -136,6 +138,7 @@ public sealed partial class MainWindow
     }
     private void HandleKey(object? sender, KeyEventArgs e)
     {
+        if (_isSlideshow) { e.Handled = true; return; }
         if (!_editor.IsKeyboardFocusWithin && !_rich.IsKeyboardFocusWithin) return;
         if (_mode == EditorMode.Insert)
         {
