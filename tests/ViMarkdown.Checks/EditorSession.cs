@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
@@ -23,7 +24,9 @@ internal sealed class EditorSession : IDisposable
             Window.Show();
             Dispatcher.UIThread.RunJobs();
             Editor = Window.GetVisualDescendants().OfType<TextEditor>().Single();
-            Rich = Window.GetVisualDescendants().OfType<RichSurface>().Single();
+            // An unselected page hides the preview before its ScrollViewer
+            // template is created, so it need not have visual descendants yet.
+            Rich = Window.GetLogicalDescendants().OfType<RichSurface>().Single();
         }
         catch
         {

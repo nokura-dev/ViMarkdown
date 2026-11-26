@@ -13,9 +13,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Prepare D2
+        shell: pwsh
+        run: python scripts/prepare-d2.py ${{ matrix.runtime }}
       - name: Checks
         shell: pwsh
-        run: dotnet run --project tests/ViMarkdown.Checks -p:UsedAvaloniaProducts= -p:UseSharedCompilation=false -- --all
+        run: dotnet run --project tests/ViMarkdown.Checks -p:UsedAvaloniaProducts= -p:UseSharedCompilation=false -- --all --d2
       - name: Package
         shell: pwsh
         run: ./scripts/package.ps1 -Runtime ${{ matrix.runtime }}

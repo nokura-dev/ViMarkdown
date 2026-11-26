@@ -19,7 +19,7 @@ public static class DocxExport
     private const int VerticalMargin = 850, HorizontalMargin = 850; // 15mm, in twips.
     private const string BodySize = "20"; // Open XML font sizes are in half-points.
     private static readonly string[] HeadingSizes = ["36", "32", "28", "24", "22", "20"];
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UseAdjacentReferenceLinks().Build();
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.DocxExport;
 
     private static W.RunFonts Fonts() => new()
     {
@@ -27,7 +27,7 @@ public static class DocxExport
     };
 
     public static async Task<MarkdownExportResult> WriteAsync(string destination, IReadOnlyList<WorkspaceItem> pages,
-        Func<string, byte[]?> imageResolver, Func<string, MermaidResult>? mermaidResolver = null)
+        Func<string, byte[]?> imageResolver, Func<string, D2Result>? d2Resolver = null)
     {
         // Reuse the Markdown media collector, including diagram diagnostics and placeholders.
         var stage = Path.Combine(Path.GetTempPath(), "ViMarkdown-docx-" + Guid.NewGuid().ToString("N"));
@@ -35,9 +35,9 @@ public static class DocxExport
         string? output = null;
         try
         {
-            var collected = mermaidResolver is null
+            var collected = d2Resolver is null
                 ? await MarkdownExport.WriteAsync(stage, pages, imageResolver)
-                : MarkdownExport.Write(stage, pages, imageResolver, mermaidResolver);
+                : MarkdownExport.Write(stage, pages, imageResolver, d2Resolver);
             Directory.CreateDirectory(destination);
             output = Path.Combine(destination, "DocxExport-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(output);

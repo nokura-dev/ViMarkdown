@@ -12,7 +12,7 @@ internal static class TestImpactRules
         nameof(WorkspacePaneChecks), nameof(HistoryChecks), nameof(VimCommandChecks),
         nameof(MovementAuditChecks), nameof(LineEndEditingChecks), nameof(ParagraphNavigationChecks), nameof(ScrollChecks)
     ];
-    private static readonly string[] Exports = [nameof(ExportChecks), nameof(DocxChecks), nameof(MermaidChecks)];
+    private static readonly string[] Exports = [nameof(ExportChecks), nameof(DocxChecks), nameof(D2Checks)];
     private static readonly Dictionary<string, string[]> Sources = BuildSources();
 
     private static Dictionary<string, string[]> BuildSources()
@@ -26,11 +26,13 @@ internal static class TestImpactRules
             "VimClipboard", "VimSearch", "VimRegex", "SourceNavigation", "DisplayNavigation", "MacInputMode",
             "ImeComposition", "WorkspaceLayout", "WorkspacePanes", "WorkspaceActions", "WorkspaceDialogs",
             "WorkspacePageMove", "WorkspaceShortcuts", "WorkspaceFocus", "WindowPlacement", "TimelineNavigation");
-        Add(GuiSuites.Concat(Exports).ToArray(), "WorkspaceOrdering", "TimelinePeriods", "ExportTools");
+        Add(GuiSuites.Concat(Exports).ToArray(), "WorkspaceOrdering", "TimelinePeriods", "ExportTools", "WorkspaceContextMenus");
         Add(GuiSuites.Concat([nameof(MediaChecks), nameof(ImageSizingChecks)]).ToArray(), "MediaEditing");
+        Add([nameof(MediaChecks)], "ClipboardImageData");
         Add(GuiSuites.Concat([nameof(TrashChecks)]).Distinct().ToArray(), "WorkspaceTrash");
         Add([nameof(WorkspaceSearchChecks)], "WorkspaceSearch");
         Add(GuiSuites, "WorkspaceSearchView", "WorkspaceSearchNavigation", "SearchHighlight");
+        Add([nameof(D2Checks), nameof(D2PolicyChecks)], "D2Renderer", "D2Policy");
         Add(Exports, "MarkdownExport", "ExportFileNames");
         Add([nameof(DocxChecks)], "DocxExport");
         // Shared layout, projection, persistence, initialization, and rendering files

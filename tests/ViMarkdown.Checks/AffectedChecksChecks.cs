@@ -31,7 +31,7 @@ internal static class AffectedChecksChecks
             "未知の記録形式は全件実行");
         Exact(Select(original));
         Exact(Select(Changed("src/ViMarkdown/DocxExport.cs")), nameof(DocxChecks));
-        Exact(Select(Changed("src/ViMarkdown/MarkdownExport.cs")), nameof(ExportChecks), nameof(DocxChecks), nameof(MermaidChecks));
+        Exact(Select(Changed("src/ViMarkdown/MarkdownExport.cs")), nameof(ExportChecks), nameof(DocxChecks), nameof(D2Checks));
         Exact(Select(Changed("src/ViMarkdown/WorkspaceSearch.cs")), nameof(WorkspaceSearchChecks));
         Exact(Select(Changed("tests/ViMarkdown.Checks/DocxChecks.cs")), nameof(DocxChecks));
         Exact(Select(Changed("tests/ViMarkdown.Checks/PageInkAlignmentChecks.cs")), nameof(PageInkAlignmentChecks), nameof(ModeAlignmentChecks));
@@ -93,7 +93,7 @@ internal static class AffectedChecksChecks
         var render = CheckOptions.Parse(["--affected", "--render-workspace", "image.png", "--dry-run"]);
         Exact(AffectedChecks.Select(suites, render, original, history), nameof(EditorViewChecks));
         check(render.DryRun && render.RenderPath("--render-workspace") == "image.png", "選択と描画指定を併用できる");
-        Exact(AffectedChecks.Select(suites, CheckOptions.Parse(["--affected", "--mermaid"]), original, history), nameof(MermaidChecks));
+        Exact(AffectedChecks.Select(suites, CheckOptions.Parse(["--affected", "--d2"]), original, history), nameof(D2Checks));
         foreach (var args in new[] { new[] { "--suite" }, ["--suite", ",,,"], ["--render"], ["--unknown"],
             ["--affected", "--suite", "DocxChecks"] })
         {
@@ -133,7 +133,7 @@ internal static class AffectedChecksChecks
         check(!CheckInputs.Same(original, changedEnvironment), "実行中の環境変更を検出");
 
         var root = CheckInputs.FindRoot();
-        var live = CheckInputs.Capture(root, mermaid: false);
+        var live = CheckInputs.Capture(root, d2: false);
         check(CheckInputs.MatchesBuild(root, live), "実際のビルド時マニフェストが現在のソースと一致");
         var stale = new CheckSnapshot(live.Context, new(live.Files, StringComparer.Ordinal)
         { ["src/ViMarkdown/DocxExport.cs"] = "newer-than-build" });
@@ -158,22 +158,22 @@ internal static class AffectedChecksChecks
             Write("tests/ExampleChecks.cs", "test");
             Write("scripts/package.sh", "script");
             Write(".github/workflows/check.yml", "workflow");
-            Write("tools/mermaid/package-lock.json", "lock");
+            Write("tools/d2/version.json", "lock");
             Write("docs/markdown-features-sample.md", "fixture");
             Write("NuGet.Config", "configuration");
-            foreach (var path in new[] { "src/bin/output.cs", "tests/obj/generated.cs", "tools/mermaid/node_modules/module.js",
+            foreach (var path in new[] { "src/bin/output.cs", "tests/obj/generated.cs", "tools/d2/node_modules/module.js",
                 "build/app.exe", ".cache/checks/state.json", "docs/notes.md", "README.md" }) Write(path, "ignored");
-            var first = CheckInputs.Capture(root, mermaid: false);
+            var first = CheckInputs.Capture(root, d2: false);
             check(first.Files.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(new[] { "src/App.cs", "tests/ExampleChecks.cs",
-                "scripts/package.sh", ".github/workflows/check.yml", "tools/mermaid/package-lock.json",
+                "scripts/package.sh", ".github/workflows/check.yml", "tools/d2/version.json",
                 "docs/markdown-features-sample.md", "NuGet.Config" }),
                 "ソース・ビルド設定・テストデータを監視し、生成物と通常ドキュメントを除外する");
             Write("docs/notes.md", "updated");
-            check(CheckInputs.Same(first, CheckInputs.Capture(root, mermaid: false)), "通常ドキュメント変更では再検証を要求しない");
+            check(CheckInputs.Same(first, CheckInputs.Capture(root, d2: false)), "通常ドキュメント変更では再検証を要求しない");
             Write("src/new.json", "input");
-            check(!CheckInputs.Same(first, CheckInputs.Capture(root, mermaid: false)), "未登録の入力ファイル追加も検出する");
-            var realMermaid = CheckInputs.Capture(root, mermaid: true);
-            check(realMermaid.Context != first.Context, "通常のMermaidチェック成功を実エンジンの成功と混同しない");
+            check(!CheckInputs.Same(first, CheckInputs.Capture(root, d2: false)), "未登録の入力ファイル追加も検出する");
+            var realD2 = CheckInputs.Capture(root, d2: true);
+            check(realD2.Context != first.Context, "通常のD2チェック成功を実エンジンの成功と混同しない");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }

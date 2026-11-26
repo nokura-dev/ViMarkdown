@@ -17,13 +17,13 @@ static class DocxChecks
             bitmap.Save(imageStream);
             var png = imageStream.ToArray();
             var asset = store.AddImage(png);
-            var id = store.Create("同名(資料)", false, null, "# 見出し\n\n## 見出し2\n\n### 見出し3\n\n#### 見出し4\n\n##### 見出し5\n\n###### 見出し6\n\n**太字** *斜体* `code`\n次行\n\n```text\nコード本文\n```\n\n| 列A | 列B |\n|---|---|\n| 日本語 | 内容 |\n\n![画像](" + asset + ")\n\n![欠損](asset://missing)\n\n```mermaid\nflowchart TD\n A --> B\n```");
+            var id = store.Create("同名(資料)", false, null, "# 見出し\n\n## 見出し2\n\n### 見出し3\n\n#### 見出し4\n\n##### 見出し5\n\n###### 見出し6\n\n**太字** *斜体* `code`\n次行\n\n```text\nコード本文\n```\n\n| 列A | 列B |\n|---|---|\n| 日本語 | 内容 |\n\n![画像](" + asset + ")\n\n![欠損](asset://missing)\n\n```d2\ndirection: down\n A -> B\n```");
             store.Create("同名(資料)", false, null, "第二ページ");
             var backup = store.Backup(root);
             using (var copy = new WorkspaceStore(backup))
                 check(copy.Items().Count == 2 && copy.GetImage(asset)!.SequenceEqual(png), "バックアップに本文と画像を保持（WAL使用中）");
             {
-                var result = DocxExport.WriteAsync(root, store.Items(), store.GetImage, _ => new MermaidResult(png, null)).GetAwaiter().GetResult();
+                var result = DocxExport.WriteAsync(root, store.Items(), store.GetImage, _ => new D2Result(png, null)).GetAwaiter().GetResult();
                 var files = Directory.GetFiles(result.Directory, "*.docx");
                 check(files.Length == 2, "DOCX個別出力のファイル数");
                 foreach (var file in files)

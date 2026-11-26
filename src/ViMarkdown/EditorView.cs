@@ -8,6 +8,8 @@ namespace ViMarkdown;
 
 public sealed partial class MainWindow
 {
+    private Grid _editorArea = null!;
+
     private static readonly Thickness SourceEditorPadding = new(5, 24, 24, 24);
 
     private TextEditor CreateSourceEditor()
@@ -29,7 +31,9 @@ public sealed partial class MainWindow
         // otherwise override their colors, including inside code blocks.
         editor.Options.EnableHyperlinks = false;
         editor.Options.EnableEmailHyperlinks = false;
-        editor.TextArea.TextView.LineTransformers.Add(new LightPlusMarkdown());
+        var markdown = new LightPlusMarkdown();
+        editor.TextArea.TextView.LineTransformers.Add(markdown);
+        editor.TextArea.TextView.BackgroundRenderers.Add(markdown);
         editor.TextArea.TextView.LineTransformers.Add(new SearchHighlight(() => _workspaceSearchRanges));
         var lineNumbers = editor.TextArea.LeftMargins.OfType<AvaloniaEdit.Editing.LineNumberMargin>().Single();
         const double lineNumberGap = 6;
@@ -118,21 +122,42 @@ public sealed partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center
         });
         statusItems.Children.Add(_saveStatus);
+        var slideshow = ToolbarButtons.Create("slideshow", "スライドショー", "スライドショー (F5) — Escで終了");
+        slideshow.Name = "SlideshowButton";
+        // Match the existing text row; the standard toolbar button is too tall.
+        slideshow.Width = slideshow.MinWidth = 22;
+        slideshow.Height = slideshow.MinHeight = 0;
+        slideshow.Padding = new Thickness(0);
+        slideshow.ClipToBounds = true;
+        // Let the existing status text determine the row height before sizing
+        // the button, so adding it cannot make the status bar taller.
+        statusItems.SizeChanged += (_, e) =>
+        {
+            slideshow.Height = Math.Min(18, e.NewSize.Height);
+            if (slideshow.Content is Avalonia.Controls.Shapes.Path icon)
+                icon.Width = icon.Height = Math.Min(16, slideshow.Height);
+        };
+        slideshow.VerticalAlignment = VerticalAlignment.Center;
+        slideshow.Click += (_, _) => StartSlideshow();
+        var statusLayout = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        statusLayout.Children.Add(new ScrollViewer
+        {
+            Content = statusItems,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+        });
+        Grid.SetColumn(slideshow, 1);
+        statusLayout.Children.Add(slideshow);
         var statusBar = new Border
         {
             Background = WorkspaceColors.Chrome,
             BorderBrush = WorkspaceColors.Divider,
             BorderThickness = new Thickness(0, 1, 0, 0),
             Padding = new Thickness(12, 5),
-            Child = new ScrollViewer
-            {
-                Content = statusItems,
-                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden,
-                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
-            }
+            Child = statusLayout
         };
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
-        var area = new Grid { Focusable = true }; area.Children.Add(_preview); area.Children.Add(_editor);
+        var area = _editorArea = new Grid { Focusable = true }; area.Children.Add(_preview); area.Children.Add(_editor);
         root.Children.Add(new Border
         {
             Background = WorkspaceColors.Editor,

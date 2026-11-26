@@ -50,7 +50,7 @@ public sealed partial class MainWindow
     private void RememberNormalPlacement()
     {
         // Keep the restored size when closing a maximized or minimized window.
-        if (!_placementOpened || WindowState != WindowState.Normal) return;
+        if (!_placementOpened || _isSlideshow || WindowState != WindowState.Normal) return;
         _normalPlacement = new(Position.X, Position.Y, ClientSize.Width, ClientSize.Height, false);
     }
 
@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         if (_normalPlacement is { } placement)
             _store.SetSetting("window-placement", JsonSerializer.Serialize(placement with
             {
-                Maximized = WindowState == WindowState.Maximized
+                Maximized = (_isSlideshow ? _slideshowWindowState : WindowState) == WindowState.Maximized
             }));
     }
 }

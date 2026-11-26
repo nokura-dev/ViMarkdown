@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ViMarkdown;
 
@@ -15,6 +16,9 @@ internal static class EditorViewChecks
         using var session = new EditorSession();
         var window = session.Window;
         var editor = session.Editor;
+        // Keep this scenario independent of the bundled README's current title.
+        editor.Text = "# Markdown 表示切り替え\n\n本文 **太字** と `code`\n\n---\n\n末尾";
+        Dispatcher.UIThread.RunJobs();
         var original = editor.Document.Text;
         check(window.GetVisualDescendants().OfType<TextBlock>().Where(t => !string.IsNullOrEmpty(t.Text))
                 .All(t => t.FontFamily.Equals(Typography.BodyFont)),
@@ -22,7 +26,7 @@ internal static class EditorViewChecks
         check(window.GetVisualDescendants().OfType<TemplatedControl>().Where(c => c is Button or TextBox or ComboBox)
                 .All(c => c.FontFamily.Equals(Typography.BodyFont)),
             "ボタン・検索欄・選択欄は両OS共通フォントを使用する");
-        var licenseDirectory = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "MigMix1M");
+        var licenseDirectory = Path.Combine(RuntimeAssets.DataDirectory, "Licenses", "MigMix1M");
         check(File.Exists(Path.Combine(licenseDirectory, "ipag00303", "IPA_Font_License_Agreement_v1.0.txt")) &&
             File.Exists(Path.Combine(licenseDirectory, "ViMarkdown-NOTICE.txt")) &&
             File.Exists(Path.Combine(licenseDirectory, "migmix-README.txt")),

@@ -12,7 +12,7 @@ internal static class Program
 {
     [STAThread]
     public static void Main(string[] args) => AppBuilder.Configure<App>()
-        .UsePlatformDetect().LogToTrace().StartWithClassicDesktopLifetime(args);
+        .UsePlatformDetect().StartWithClassicDesktopLifetime(args);
 }
 
 public sealed class App : Application
@@ -37,7 +37,7 @@ public sealed class App : Application
                     Children =
                     {
                         new TextBlock { Text = "ViMarkdown", FontSize = 24 },
-                        new TextBlock { Text = "Version 1.0.0" },
+                        new TextBlock { Text = "Version " + typeof(App).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().First().InformationalVersion.Split('+')[0] },
                         new TextBlock { Text = "Markdownエディター" },
                         new TextBlock { Text = "作者: nokura-dev" },
                         new TextBlock { Text = "ライセンス: MIT" },

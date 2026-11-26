@@ -22,41 +22,17 @@ internal static class MacInputMode
             char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.PrivateUse) ? null : text;
     }
 
-    // Deliver JIS Eisu to this application's key window, rather than posting
-    // a system-wide key event (which requires Accessibility permission).
+    // Select the remembered ASCII input source directly. Synthesizing Eisu
+    // events makes Cocoa's Japanese IME emit kana/eisu diagnostic messages.
     public static void SendEisu(Window owner)
     {
         if (!OperatingSystem.IsMacOS() || !owner.IsActive || owner.TryGetPlatformHandle() is null) return;
-        var app = Send(GetClass("NSApplication"), Selector("sharedApplication"));
-        var window = Send(app, Selector("keyWindow"));
-        if (window == IntPtr.Zero) return;
-        var responder = Send(window, Selector("firstResponder"));
-        var inputContext = Send(responder, Selector("inputContext"));
-        var number = Send(window, Selector("windowNumber"));
-        var empty = String(Send(GetClass("NSString"), Selector("alloc")), Selector("initWithUTF8String:"), "");
-        try
-        {
-            var eventClass = GetClass("NSEvent");
-            var constructor = Selector("keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:");
-            foreach (var type in new nuint[] { 10, 11 }) // keyDown, keyUp
-            {
-                var keyEvent = KeyEvent(eventClass, constructor, type, default, 0, 0,
-                    number, IntPtr.Zero, empty, empty, false, 0x66);
-                if (keyEvent == IntPtr.Zero) continue;
-                // RichSurface has no managed IME client. Deliver directly to
-                // Cocoa's input context so Eisu works in Normal/Visual too.
-                var handled = inputContext != IntPtr.Zero && HandleEvent(inputContext, Selector("handleEvent:"), keyEvent);
-                if (!handled) SendEvent(app, Selector("sendEvent:"), keyEvent);
-                if (type == 10 && !handled) SelectAsciiSource();
-            }
-        }
-        finally { Send(empty, Selector("release")); }
+        SelectAsciiSource();
     }
 
     private static void SelectAsciiSource()
     {
-        // A view without an active input context can ignore Eisu. Select the
-        // remembered ASCII-capable source in that case, without global keys.
+        // Change this application's input source without synthesizing key events.
         var source = TISCopyCurrentASCIICapableKeyboardInputSource();
         if (source == IntPtr.Zero) return;
         try { TISSelectInputSource(source); }
@@ -71,24 +47,10 @@ internal static class MacInputMode
     [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
     private static extern void CFRelease(IntPtr value);
     private const string ObjC = "/usr/lib/libobjc.A.dylib";
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativePoint { public double X, Y; }
     [DllImport(ObjC, EntryPoint = "objc_getClass")]
     private static extern IntPtr GetClass(string name);
     [DllImport(ObjC, EntryPoint = "sel_registerName")]
     private static extern IntPtr Selector(string name);
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
     private static extern IntPtr Send(IntPtr receiver, IntPtr selector);
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr String(IntPtr receiver, IntPtr selector, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern void SendEvent(IntPtr receiver, IntPtr selector, IntPtr value);
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool HandleEvent(IntPtr receiver, IntPtr selector, IntPtr value);
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern IntPtr KeyEvent(IntPtr receiver, IntPtr selector, nuint type,
-        NativePoint location, nuint modifiers, double timestamp, nint windowNumber,
-        IntPtr context, IntPtr characters, IntPtr unmodifiedCharacters,
-        [MarshalAs(UnmanagedType.I1)] bool repeat, ushort keyCode);
 }

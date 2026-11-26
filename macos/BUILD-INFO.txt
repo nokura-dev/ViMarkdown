@@ -1,0 +1,7 @@
+Version: 1.1.0-dev.6
+Runtime: osx-arm64
+Source commit: 758d068cf95e539861795331dc402341561bd96b
+Source: https://github.com/nokura-dev/ViMarkdown/tree/758d068cf95e539861795331dc402341561bd96b
+Build date: 2026-11-26 (Asia/Tokyo)
+D2: v0.9.0
+Tests: skipped for this publication

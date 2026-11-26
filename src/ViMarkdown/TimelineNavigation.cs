@@ -16,6 +16,9 @@ public sealed partial class MainWindow
         _timelinePeriod = period;
         _updateTimelineSelection?.Invoke();
         ReloadLists();
+        // Clearing an unmatched page focuses the notes list. Keep an empty
+        // timeline selection on its button so period navigation can continue.
+        if (_pages.ItemCount == 0) _periodButtons[period].Focus();
     }
 
     private Control BuildTimeline()
@@ -30,7 +33,7 @@ public sealed partial class MainWindow
         AutomationProperties.SetName(timelineHeader, "期間");
         ToolTip.SetTip(timelineHeader, "更新日で絞り込み");
         
-        var labels = new[] { "全て", "今日", "今週", "先週", "今月", "先月", "先々月" };
+        var labels = new[] { "全て", "今日", "昨日", "今週", "先週", "今月", "先月", "先々月" };
         var buttons = new List<Button>();
         for (var index = 0; index < labels.Length; index++)
         {
@@ -42,10 +45,11 @@ public sealed partial class MainWindow
             if (index > 0) geometry += index switch
             {
                 1 => " M8,9 L8,12",
-                2 => " M5,10 L11,10",
-                3 => " M8,9 L5,11 L8,13 M5,11 L11,11",
-                4 => " M5,9 L5,12 M8,9 L8,12 M11,9 L11,12",
-                5 => " M9,9 L6,11 L9,13",
+                2 => " M9,9 L6,11 L9,13 M6,11 L11,11",
+                3 => " M5,10 L11,10",
+                4 => " M8,9 L5,11 L8,13 M5,11 L11,11",
+                5 => " M5,9 L5,12 M8,9 L8,12 M11,9 L11,12",
+                6 => " M9,9 L6,11 L9,13",
                 _ => " M7,9 L4,11 L7,13 M11,9 L8,11 L11,13"
             };
             content.Children.Add(new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(geometry), Width = 14, Height = 14, Stretch = Stretch.Uniform, Stroke = WorkspaceColors.Muted, StrokeThickness = 1.2, HorizontalAlignment = HorizontalAlignment.Center });
@@ -74,6 +78,9 @@ public sealed partial class MainWindow
         // This is a timeline navigation item, rather than a toolbar action.
         trash.Focusable = true;
         trash.IsTabStop = true;
+        // Open on the initial press, before focus/activation changes on Windows
+        // can interrupt the release that normally triggers the button's click.
+        trash.ClickMode = ClickMode.Press;
         trash.Name = "TrashButton";
         trash.Width = 63;
         trash.Height = 54;

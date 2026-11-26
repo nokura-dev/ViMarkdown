@@ -9,31 +9,9 @@ using Avalonia.Media;
 
 namespace ViMarkdown;
 
-public record DisplayUnit(string Text, int Start, int End, double Size = Typography.Body,
-    bool Bold = false, bool Italic = false, bool Code = false,
-    bool Strike = false, string? LinkUrl = null, int? TaskOffset = null, bool Rule = false,
-    IReadOnlyList<TextAlignment>? Alignments = null, double HeadingRuleThickness = 0, double BottomSpacing = 0,
-    string? ImageUrl = null, string? MermaidCode = null, IReadOnlyList<IReadOnlyList<IReadOnlyList<DisplayUnit>>>? Table = null);
-
-// Source offsets are UTF-16, matching AvaloniaEdit. Grapheme boundaries prevent
-// navigation from splitting surrogate pairs, combining marks or emoji sequences.
-public static class TextBoundaries
-{
-    public static int Next(string text, int offset)
-        => StringInfo.ParseCombiningCharacters(text).FirstOrDefault(x => x > offset, text.Length);
-    public static int Previous(string text, int offset)
-        => StringInfo.ParseCombiningCharacters(text).LastOrDefault(x => x < offset, 0);
-}
-
 public static class Projection
 {
-    private static readonly MarkdownPipeline Pipeline = CreatePipeline();
-    private static MarkdownPipeline CreatePipeline()
-    {
-        var builder = new MarkdownPipelineBuilder()
-        .UsePipeTables().UseTaskLists().UseEmphasisExtras(Markdig.Extensions.EmphasisExtras.EmphasisExtraOptions.Strikethrough).UseDefinitionLists().UsePreciseSourceLocation();
-        return builder.UseAdjacentReferenceLinks().Build();
-    }
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.Projection;
 
     public static IReadOnlyList<DisplayUnit> Build(string source)
     {
@@ -160,7 +138,8 @@ public static class Projection
                     while (i < prefix.Length && prefix[i] != '│') i++;
                     var sourceStart = cursor;
                     while (cursor < contentOffset && source[cursor] is ' ' or '\t') cursor++;
-                    result.Add(new(prefix[start..i], sourceStart, cursor));
+                    // Quote padding is visual spacing, not a separate caret stop.
+                    result.Add(new(prefix[start..i], sourceStart, sourceStart));
                 }
             }
             return result;
@@ -179,6 +158,8 @@ public static class Projection
                 ? group.Cast<Block>() : new[] { block }).OrderBy(block => block.Span.Start);
             foreach (var block in orderedBlocks)
             {
+                // Preserve up to one source blank line, including between D2
+                // fences. Object line terminators are handled separately below.
                 if (previous is not null) AddSourceGap(previous, block.Span.Start);
                 var contentStart = output.Count;
                 if (block is ThematicBreakBlock)
@@ -232,12 +213,14 @@ public static class Projection
                 else if (block is LeafBlock { Inline: not null } leaf)
                     Inline(leaf.Inline, block is HeadingBlock h ? (32 - h.Level * 2) * Typography.RichScale : Typography.Body,
                         block is HeadingBlock || block is DefinitionTerm);
-                else if (block is FencedCodeBlock mermaid && MermaidRenderer.IsMermaid(mermaid))
-                    output.Add(new("", block.Span.Start, block.Span.End + 1, MermaidCode: MermaidRenderer.Code(mermaid)));
+                else if (block is FencedCodeBlock d2 && D2Renderer.IsD2(d2))
+                    output.Add(new("", block.Span.Start, block.Span.End + 1, D2Code: D2Renderer.Code(d2)));
                 else if (block is CodeBlock code)
                 {
-                    foreach (var line in code.Lines.Lines.Take(code.Lines.Count))
+                    // Empty fences have no backing array for their content lines.
+                    for (var i = 0; i < code.Lines.Count; i++)
                     {
+                        var line = code.Lines.Lines[i];
                         Add(line.Slice.ToString(), line.Slice.Start, Typography.Code, code: true);
                         Add("\n", Math.Min(source.Length, line.Slice.End + 1));
                     }
@@ -263,7 +246,7 @@ public static class Projection
                     Add(source[block.Span.Start..(block.Span.End + 1)], block.Span.Start);
                 // Attach the divider to the final heading glyph so wrapping places
                 // it below the last visual line without adding source characters.
-                if (block is HeadingBlock { IsSetext: false, Level: 1 or 2 or 3 } heading && output.Count > contentStart)
+                if (block is HeadingBlock { IsSetext: false, Level: 1 or 2 } heading && output.Count > contentStart)
                     output[^1] = output[^1] with { HeadingRuleThickness = heading.Level == 1 ? 2 : 1 };
                 if (block is LeafBlock && prefix.Length > 0)
                 {
@@ -273,8 +256,9 @@ public static class Projection
                 }
                 // Horizontal rules already reserve and terminate one visual line
                 // in RichTextLayout. Another newline would add a synthetic blank.
+                // D2 objects reserve complete lines in RichTextLayout as well.
                 // Code lines and nested blocks also already terminate their output.
-                if (output.Count > 0 && !output[^1].Rule && !output[^1].Text.EndsWith('\n'))
+                if (output.Count > 0 && !output[^1].Rule && output[^1].D2Code is null && !output[^1].Text.EndsWith('\n'))
                     Add("\n", Math.Min(source.Length, block.Span.End + 1));
                 if ((block is HeadingBlock { IsSetext: false, Level: <= 3 } ||
                     block is ListBlock && blocks is not ListItemBlock) && output.Count > contentStart)

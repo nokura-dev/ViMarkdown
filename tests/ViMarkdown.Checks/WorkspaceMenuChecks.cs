@@ -98,7 +98,7 @@ internal static class WorkspaceMenuChecks
         var emptyNote = store.Create("B ページなし", true, null);
         var fullPage = store.Create("A 本文あり", false, populatedNote, "本文");
         var emptyPage = store.Create("B 本文なし", false, populatedNote, "");
-        typeof(MainWindow).GetMethod("ReloadLists", flags)!.Invoke(window, null);
+        typeof(MainWindow).GetMethod("ReloadLists", flags)!.Invoke(window, new object[] { true });
         Dispatcher.UIThread.RunJobs();
         Context(notes, true, 1);
         check(Items(notes).All(i => i.IsEnabled), "未選択の通常ノートを右クリックすると操作と出力が有効になる");

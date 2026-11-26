@@ -25,6 +25,7 @@ public sealed partial class MainWindow
         ConfigureWindowPlacement();
         if (Enum.TryParse<PageSortOrder>(_store.GetSetting("page-sort"), out var order) && Enum.IsDefined(order)) _pageSortOrder = order;
         _rich.ImageResolver = _store.GetImage;
+        _rich.ImageCopyRequested += async data => await CopyImageAsync(data);
         _saveTimer.Tick += (_, _) => SaveCurrent();
         Closing += (_, e) => { if (!SaveCurrent()) e.Cancel = true; };
         Closed += (_, _) => { _saveTimer.Stop(); SaveWindowPlacement(); _store.Dispose(); };
@@ -33,7 +34,8 @@ public sealed partial class MainWindow
         {
             if (_rebuilding || _notes.SelectedItem is not NoteChoice choice) return;
             if (!SaveCurrent()) { ReloadLists(); return; }
-            _noteId = choice.Id; _store.SetSetting("note", _noteId?.ToString()); ReloadLists();
+            OpenPage(null);
+            _noteId = choice.Id; _store.SetSetting("note", _noteId?.ToString()); ReloadLists(openTimelinePage: false);
         };
         _pages.SelectionChanged += (_, _) =>
         {
@@ -45,7 +47,10 @@ public sealed partial class MainWindow
         ConfigurePageDragDrop();
         if (_store.GetSetting("initialized") is null)
         {
-            var id = _store.Create("はじめに", false, null, Sample);
+            var readme = ReadInitialPage("README.md");
+            var sample = ReadInitialPage("MarkdownSample.md");
+            var id = _store.Create("README.md", false, null, readme);
+            _store.Create("Markdown記法サンプル", false, null, sample);
             _store.SetSetting("active", id.ToString()); _store.SetSetting("initialized", "1");
         }
         var items = _store.Items();
@@ -55,13 +60,21 @@ public sealed partial class MainWindow
         else OpenPage(null);
         ReloadLists(); return grid;
     }
+    private static string ReadInitialPage(string name)
+    {
+        using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("ViMarkdown.InitialPages." + name)
+            ?? throw new InvalidOperationException("初期ページが見つかりません: " + name);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     private List<NoteChoice> NoteChoices(IEnumerable<WorkspaceItem>? items = null)
     {
         var result = new List<NoteChoice> { new(null, "未分類") };
         result.AddRange(WorkspaceOrdering.ByName((items ?? _store.Items()).Where(i => i.IsNote)).Select(i => new NoteChoice(i.Id, i.Name)));
         return result;
     }
-    private void ReloadLists()
+    private void ReloadLists(bool openTimelinePage = true)
     {
         var focusedList = _notes.IsKeyboardFocusWithin ? _notes : _pages.IsKeyboardFocusWithin ? _pages : null;
         var selected = SelectedPageIds();
@@ -80,12 +93,13 @@ public sealed partial class MainWindow
                     if (selected.Contains(pages[i].Id)) _pages.Selection.Select(i);
             if (!pages.Any(p => p.Id == _pageRangeEndId)) _pageRangeEndId = _activePageId;
             _store.SetSetting("note", _noteId?.ToString());
-            if (_timelinePeriod != 0 && !pages.Any(p => p.Id == _activePageId)) OpenPage(pages.FirstOrDefault()?.Id);
+            if (openTimelinePage && _timelinePeriod != 0 && !pages.Any(p => p.Id == _activePageId)) OpenPage(pages.FirstOrDefault()?.Id);
         }
         finally
         {
             _rebuilding = false;
-            focusedList?.Focus();
+            if (_activePageId is null) _notes.Focus();
+            else focusedList?.Focus();
         }
     }
     private void OpenPage(long? id)
@@ -97,16 +111,23 @@ public sealed partial class MainWindow
         try
         {
             var item = _store.Items().FirstOrDefault(i => i.Id == id && !i.IsNote);
+            _rich.ClearPage();
+            foreach (var markdown in _editor.TextArea.TextView.LineTransformers.OfType<LightPlusMarkdown>())
+                markdown.ClearCache();
             _activePageId = item?.Id; _pageRangeEndId = _activePageId; _pageContent.Text = item?.Body ?? ""; _pageContent.UndoStack.ClearAll();
             _caret = 0; _anchor = null; _editor.CaretOffset = 0; _modeSwitchGeneration++;
             _preview.Offset = default; _editor.ScrollToHome();
             _editor.IsEnabled = _rich.IsEnabled = item is not null;
+            _paneBodies[3].IsEnabled = item is not null;
+            _editor.IsVisible = item is not null && _mode == EditorMode.Insert;
+            _preview.IsVisible = item is not null && _mode != EditorMode.Insert;
             Title = item is null ? "ViMarkdown" : FormatPageWindowTitle(item.Name);
             _store.SetSetting("active", _activePageId?.ToString());
             _saveStatus.Text = item is null ? "ページを選択するか、作成してください" : "保存済み";
             Refresh();
         }
         finally { _loading = false; }
+        if (_activePageId is null) _notes.Focus();
     }
     private void ScheduleSave()
     {
@@ -118,13 +139,7 @@ public sealed partial class MainWindow
         if (_automaticPageNameId != id) return false;
         var page = _store.Items().FirstOrDefault(p => p.Id == id);
         if (page is null) return false;
-        var lines = _pageContent.Text.Split('\n');
-        var first = lines[0].Trim().TrimStart('#').Trim();
-        var dated = DateTime.TryParseExact(first, "yyyy/MM/dd HH:mm",
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out _);
-        var candidate = dated ? lines.ElementAtOrDefault(1) ?? "" : lines[0];
-        var name = candidate.Trim().TrimStart('#').Trim();
+        var name = PageNaming.AutomaticName(_pageContent.Text);
         if (string.IsNullOrWhiteSpace(name) || name == page.Name) return false;
         _store.Rename(id, name);
         Title = FormatPageWindowTitle(name);
@@ -132,7 +147,7 @@ public sealed partial class MainWindow
     }
 
     private static string FormatPageWindowTitle(string name) =>
-        "ViMarkdown — " + name;
+        PageNaming.WindowTitle(name);
 
     private bool SaveCurrent()
     {
@@ -150,7 +165,7 @@ public sealed partial class MainWindow
                 if (page is not null)
                     foreach (var date in _pages.GetVisualDescendants().OfType<TextBlock>()
                         .Where(t => t.Name == "PageUpdatedAt" && t.Tag is long id && id == page.Id))
-                        date.Text = page.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm");
+                        date.Text = page.UpdatedAt.ToLocalTime().ToString(PageNaming.TimestampFormat);
             }
             return true;
         }

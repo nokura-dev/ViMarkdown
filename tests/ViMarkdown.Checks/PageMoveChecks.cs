@@ -21,7 +21,7 @@ internal static class PageMoveChecks
         var note = store.Create("移動先", true, null);
         var page = store.Create("移動するページ", false, null, "保存前");
         Call("OpenPage", page);
-        Call("ReloadLists");
+        Call("ReloadLists", true);
         session.Editor.Document.Text = "移動前の編集内容";
         check((bool)Call("MovePageToNote", page, note)!, "別のノートへ移動できる");
         var moved = store.Items().Single(i => i.Id == page);
@@ -39,7 +39,7 @@ internal static class PageMoveChecks
 
         var ids = Enumerable.Range(0, 5).Select(i => store.Create("範囲" + i, false, null, "本文" + i)).ToArray();
         Call("OpenPage", ids[2]);
-        Call("ReloadLists");
+        Call("ReloadLists", true);
         session.Editor.CaretOffset = 2;
         long[] Selected() => pages.SelectedItems!.Cast<WorkspaceItem>().Select(p => p.Id).Order().ToArray();
         void Expect(long[] expected, string message) => check(Selected().SequenceEqual(expected.Order()), message);
@@ -63,7 +63,7 @@ internal static class PageMoveChecks
         session.Key(PhysicalKey.ArrowUp, RawInputModifiers.Shift);
         session.Key(PhysicalKey.ArrowUp, RawInputModifiers.Shift);
         Expect(ids[1..3], "Shift上キーで起点を越えて逆側へ選択を伸ばす");
-        Call("ReloadLists");
+        Call("ReloadLists", true);
         Expect(ids[1..3], "一覧更新後も範囲を保持する");
         session.Key(PhysicalKey.ArrowDown, RawInputModifiers.Shift);
         Expect([ids[2]], "一覧更新後も範囲端から選択を縮小する");
@@ -101,7 +101,7 @@ internal static class PageMoveChecks
         for (var i = 0; i < 5; i++) session.Key(PhysicalKey.ArrowUp, RawInputModifiers.Shift);
         Expect(ids[1..3], "Shift上キーは一覧先頭で止まる");
         typeof(MainWindow).GetField("_noteId", flags)!.SetValue(window, null);
-        Call("ReloadLists");
+        Call("ReloadLists", true);
         Click(ids[0], true);
         Expect([ids[0]], "起点が別ノートにある場合のShiftクリックは新たな単一選択になる");
         CheckActions(check);
@@ -121,7 +121,7 @@ internal static class PageMoveChecks
         void Select()
         {
             Call("OpenPage", ids[1]);
-            Call("ReloadLists");
+            Call("ReloadLists", true);
             Call("SelectPageRange", pages.Items.Cast<WorkspaceItem>().ToList().FindIndex(p => p.Id == ids[3]));
             pages.Focus();
         }

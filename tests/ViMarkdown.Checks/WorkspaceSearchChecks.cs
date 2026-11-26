@@ -64,6 +64,13 @@ internal static class WorkspaceSearchChecks
                 else Named<Button>("SearchButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Layout();
             }
+            void OpenResult(int index = 0)
+            {
+                results.SelectedIndex = index;
+                results.Focus();
+                session.Key(PhysicalKey.Enter);
+                Layout();
+            }
             check(scope.SelectedIndex == 2 && !pane.IsVisible, "初期値は表示中のページで結果ペインは閉じている");
             keyword.Focus();
             session.Key(PhysicalKey.Tab, RawInputModifiers.Shift);
@@ -92,13 +99,18 @@ internal static class WorkspaceSearchChecks
             session.Key(PhysicalKey.Tab);
             check(keyword.IsKeyboardFocusWithin, "検索範囲のTabで検索キーワードへ戻る");
             Search("needle", 2, true);
-            check(!pane.IsVisible && session.Rich.Caret == session.Editor.Text.IndexOf("needle", StringComparison.Ordinal),
-                "Enterで表示中ページの一致語先頭へ直接移動する");
+            check(pane.IsVisible && results.ItemCount == 600 && results.IsKeyboardFocusWithin,
+                "表示中ページの検索も結果一覧を開く");
+            OpenResult();
+            check(session.Rich.Caret == session.Editor.Text.IndexOf("needle", StringComparison.Ordinal) && results.IsKeyboardFocusWithin,
+                "結果のEnterで一致語先頭へ移動し、一覧にフォーカスを保つ");
             check(session.Rich.SearchRanges.Count == 1200, "本文内の全一致語をハイライトする");
             var first = session.Rich.Caret;
             Search("needle", 2, true);
-            check(session.Rich.Caret > first, "同じページの再検索で次の一致語へ進む");
+            OpenResult(1);
+            check(session.Rich.Caret > first, "同じページの次の結果を開いて次の一致行へ進む");
             Search("row0600", 2, true);
+            OpenResult();
             var documentScroll = session.Rich.GetVisualAncestors().OfType<ScrollViewer>().First();
             var caretBounds = session.Rich.CaretBounds;
             check(documentScroll.Offset.Y > 0 && caretBounds.Top >= documentScroll.Offset.Y &&
@@ -177,7 +189,7 @@ internal static class WorkspaceSearchChecks
             Layout();
             check(pane.IsVisible && results.Items.Count == 602 && Math.Abs(scroll.Offset.Y - beforeScroll) < 2,
                 "ダブルクリックで移動した後も結果一覧とスクロール位置を保持する");
-            check(window.Title?.StartsWith(lastHit.PageName) == true && session.Rich.Caret == lastHit.Offset && session.Rich.SearchRanges.Count > 0,
+            check(window.Title == "ViMarkdown — " + lastHit.PageName && session.Rich.Caret == lastHit.Offset && session.Rich.SearchRanges.Count > 0,
                 "画面外だった末尾カードのダブルクリックで該当ページ・行・一致語先頭に移動する");
             if (renderPath is not null)
             {
@@ -197,10 +209,11 @@ internal static class WorkspaceSearchChecks
             Search("一致しない語句", 0);
             check(pane.IsVisible && results.ItemCount == 0 && results.IsKeyboardFocusWithin, "0件でも空の結果ペインを表示してフォーカスを移す");
             Search("needle", 2);
-            check(!pane.IsVisible, "表示中ページの検索では結果ペインを開かない");
+            check(pane.IsVisible && results.ItemCount > 0, "表示中ページの検索でも結果ペインを開く");
             session.Click("INSERT (i)");
             session.Editor.Document.Text = "未保存の内容\nnew keyword";
             Search("keyword", 2, true);
+            OpenResult();
             check(session.Editor.CaretOffset == session.Editor.Text.IndexOf("keyword", StringComparison.Ordinal) && session.Editor.SelectionLength == 0,
                 "挿入モードでも未保存本文の一致語先頭へカーソルを移動し選択状態にしない");
             session.Editor.Document.Text = "変更後";
@@ -218,18 +231,22 @@ internal static class WorkspaceSearchChecks
                 var position = session.Editor.IsVisible ? session.Editor.CaretOffset : session.Rich.Caret;
                 session.Key(PhysicalKey.F, RawInputModifiers.Control);
                 Layout();
-                check(!pane.IsVisible && ((Grid)window.Content!).ColumnDefinitions[6].ActualWidth == 0 &&
-                    (session.Editor.IsVisible ? session.Editor.TextArea.IsKeyboardFocusWithin : session.Rich.IsKeyboardFocusWithin),
-                    "結果表示中のCtrl+Fは各フォーカス位置・編集モードからペインを閉じて編集へ戻る");
+                check(pane.IsVisible && keyword.IsKeyboardFocusWithin && scope.SelectedIndex == 2,
+                    "結果表示中のCtrl+Fはペインを保持して表示中ページの検索欄へ移る");
                 check((session.Editor.IsVisible ? session.Editor.CaretOffset : session.Rich.Caret) == position,
-                    "Ctrl+Fで戻る際も編集位置を保持する");
-                session.Key(PhysicalKey.F, RawInputModifiers.Control);
-                check(keyword.IsKeyboardFocusWithin, "結果が非表示ならCtrl+Fは従来どおり検索欄へ移動する");
+                    "Ctrl+Fで検索欄へ移る際も編集位置を保持する");
+                session.Key(PhysicalKey.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+                check(keyword.IsKeyboardFocusWithin && scope.SelectedIndex == 1,
+                    "Ctrl+Shift+Fは選択ノートの検索欄へ移動する");
             }
             Search("no-match-unique", 0);
             session.Key(PhysicalKey.F, RawInputModifiers.Control);
             Layout();
-            check(!pane.IsVisible && session.Rich.IsKeyboardFocusWithin, "0件の結果ペインもCtrl+Fで閉じて編集へ戻る");
+            check(pane.IsVisible && keyword.IsKeyboardFocusWithin && scope.SelectedIndex == 2,
+                "0件の結果ペインでもCtrl+Fは表示中ページの検索欄へ移動する");
+            results.Focus();
+            session.Key(PhysicalKey.Escape);
+            check(!pane.IsVisible && session.Rich.IsKeyboardFocusWithin, "0件の結果ペインもEscで閉じて編集へ戻る");
         }
         finally
         {

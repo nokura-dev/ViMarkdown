@@ -39,7 +39,7 @@ internal sealed class DisplayNavigation
                 if (newline)
                     glyphs.Add(new("\n", unit.Start, line, blank));
                 else
-                    glyphs.Add(new(unit.Rule || unit.ImageUrl is not null || unit.MermaidCode is not null ? "\uFFFC" : unit.Text,
+                    glyphs.Add(new(unit.Rule || unit.ImageUrl is not null || unit.D2Code is not null ? "\uFFFC" : unit.Text,
                         unit.Start, line, true));
             }
         }

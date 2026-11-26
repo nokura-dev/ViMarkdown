@@ -30,13 +30,14 @@ public sealed partial class MainWindow
             {
                 var name = await AskName(anchor, "ノートを作成", "", "作成");
                 if (name is null || !SaveCurrent()) return;
+                OpenPage(null);
                 _noteId = _store.Create(name, true, null);
-                ReloadLists();
+                ReloadLists(openTimelinePage: false);
             }
             else
             {
                 if (!SaveCurrent()) return;
-                var name = DateTime.Now.ToString("yyyy/MM/dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+                var name = DateTime.Now.ToString(PageNaming.TimestampFormat, System.Globalization.CultureInfo.InvariantCulture);
                 var body = name + "\n";
                 var id = _store.Create(name, false, _noteId, body);
                 _timelinePeriod = 0;
@@ -77,6 +78,7 @@ public sealed partial class MainWindow
             if (_activePageId.HasValue && !remaining.Any(i => i.Id == _activePageId)) OpenPage(null);
             if (_noteId.HasValue && !remaining.Any(i => i.Id == _noteId)) _noteId = null;
             ReloadLists();
+            if (!notes) FocusPaneList(_pages);
             return Task.CompletedTask;
         });
         return menuActions;

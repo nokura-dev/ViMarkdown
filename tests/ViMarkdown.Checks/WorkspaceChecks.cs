@@ -10,11 +10,11 @@ internal static class WorkspaceChecks
     {
         var today = new DateTime(2026, 1, 1);
         DateTimeOffset Local(int year, int month, int day) => new(new DateTime(year, month, day, 12, 0, 0, DateTimeKind.Local));
-        check(TimelinePeriods.Matches(Local(2025,12,29), 2, today) && !TimelinePeriods.Matches(Local(2025,12,28), 2, today), "今週は年をまたいでも月曜から");
-        check(TimelinePeriods.Matches(Local(2025,12,28), 3, today) && !TimelinePeriods.Matches(Local(2025,12,29), 3, today), "先週は月曜から日曜");
-        check(TimelinePeriods.Matches(Local(2026,1,1), 4, today) && !TimelinePeriods.Matches(Local(2026,1,2), 4, today), "今月は今日まで");
-        check(TimelinePeriods.Matches(Local(2025,12,31), 5, today) && TimelinePeriods.Matches(Local(2025,11,1), 6, today), "先月と先々月は年をまたぐ");
-        check(TimelinePeriods.Matches(Local(2024,2,29), 5, new DateTime(2024,3,1)), "閏日の先月判定");
+        check(TimelinePeriods.Matches(Local(2025,12,29), 3, today) && !TimelinePeriods.Matches(Local(2025,12,28), 3, today), "今週は年をまたいでも月曜から");
+        check(TimelinePeriods.Matches(Local(2025,12,28), 4, today) && !TimelinePeriods.Matches(Local(2025,12,29), 4, today), "先週は月曜から日曜");
+        check(TimelinePeriods.Matches(Local(2026,1,1), 5, today) && !TimelinePeriods.Matches(Local(2026,1,2), 5, today), "今月は今日まで");
+        check(TimelinePeriods.Matches(Local(2025,12,31), 6, today) && TimelinePeriods.Matches(Local(2025,11,1), 7, today), "先月と先々月は年をまたぐ");
+        check(TimelinePeriods.Matches(Local(2024,2,29), 6, new DateTime(2024,3,1)), "閏日の先月判定");
         check(!TimelinePeriods.Matches(Local(2025,12,31), 1, today) && TimelinePeriods.Matches(Local(2026,1,1), 1, today), "今日だけを選択");
         var names = new[] { "ページ10", "ページ2", "ページ1", "ページ999999999999999999999999", "ページ20" };
         var ordered = names.Select((name, index) => new WorkspaceItem(index, null, name, false, "") { UpdatedAt = DateTimeOffset.UnixEpoch.AddDays(index) }).ToArray();
@@ -68,6 +68,8 @@ internal static class WorkspaceChecks
                 check(item.Name == "変更名" && item.NoteId == note && item.Body == "保存本文\n日本語", "DBを開き直して名前・移動先・本文を復元");
             }
             var window = new MainWindow(path); window.Show(); Dispatcher.UIThread.RunJobs();
+            var editor = window.GetVisualDescendants().OfType<TextEditor>().Single();
+            check(editor.Text == "保存本文\n日本語", "起動時に最後のページと本文を復元");
             var lists = window.GetVisualDescendants().OfType<ListBox>().Where(list => list.ContextMenu is not null).ToList();
             check(lists.Count == 2 && lists.All(list => list.ContextMenu?.Items.OfType<MenuItem>()
                 .Select(item => item.Header?.ToString()).TakeLast(2).SequenceEqual(new[] { "md出力", "docx出力" }) == true),
@@ -81,8 +83,11 @@ internal static class WorkspaceChecks
                 check(!menuItem.IsEnabled, "ページがない右クリックノートではMD・DOCX出力を無効にする");
                 notesList.ContextMenu.Close();
             }
-            var editor = window.GetVisualDescendants().OfType<TextEditor>().Single();
-            check(editor.Text == "保存本文\n日本語", "起動時に最後のページと本文を復元");
+            // Right-clicking the empty note selects it and clears the active page.
+            notesList.SelectedItem = notesList.Items.Cast<object>().Single(item => item.ToString() == "親");
+            var pagesList = lists.Single(list => list != notesList);
+            pagesList.SelectedItem = pagesList.Items.Cast<WorkspaceItem>().Single(item => item.Id == page);
+            Dispatcher.UIThread.RunJobs();
             editor.Document.Text = "自動保存の確認 👩‍💻";
             using (var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(800)))
                 Dispatcher.UIThread.MainLoop(timeout.Token);

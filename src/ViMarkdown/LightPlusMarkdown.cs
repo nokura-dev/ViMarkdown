@@ -13,21 +13,19 @@ namespace ViMarkdown;
 
 // Color source spans from the Markdown parser, keeping every delimiter visible.
 // Parse once per document version; cache only the spans needed by each line.
-public sealed class LightPlusMarkdown : DocumentColorizingTransformer
+public sealed class LightPlusMarkdown : DocumentColorizingTransformer, IBackgroundRenderer
 {
     private sealed record Span(int Start, int End, IBrush Foreground, IBrush? Background);
     private readonly Dictionary<int, List<Span>> _lines = [];
     private TextDocument? _document;
     private ITextSourceVersion? _version;
-    private static readonly MarkdownPipeline Pipeline = CreatePipeline();
-    private static MarkdownPipeline CreatePipeline()
+    public void ClearCache()
     {
-        var builder = new MarkdownPipelineBuilder()
-        .UsePipeTables().UseTaskLists().UseDefinitionLists()
-        .UseEmphasisExtras(Markdig.Extensions.EmphasisExtras.EmphasisExtraOptions.Strikethrough)
-        .UsePreciseSourceLocation().EnableTrackTrivia();
-        return builder.UseAdjacentReferenceLinks().Build();
+        _lines.Clear();
+        _document = null;
+        _version = null;
     }
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.Highlighting;
     private static readonly IBrush Heading = Brush("#005CC5");
     private static readonly IBrush Emphasis = Brush("#7A3E9D");
     private static readonly IBrush Link = Brush("#007ACC");
@@ -38,17 +36,46 @@ public sealed class LightPlusMarkdown : DocumentColorizingTransformer
     private static readonly IBrush Quote = Brush("#667085");
     private static IBrush Brush(string color) => new ImmutableSolidColorBrush(Color.Parse(color));
 
+    // Text-run backgrounds are drawn with the text, above the selection layer.
+    // Reuse the parsed spans on the background layer so selection stays visible.
+    public KnownLayer Layer => KnownLayer.Background;
+
+    public void Draw(TextView textView, DrawingContext drawingContext)
+    {
+        if (!textView.VisualLinesValid || textView.Document is not { } document) return;
+        EnsureParsed(document);
+        foreach (var visual in textView.VisualLines)
+        {
+            for (var number = visual.FirstDocumentLine.LineNumber;
+                number <= visual.LastDocumentLine.LineNumber; number++)
+            {
+                if (!_lines.TryGetValue(number, out var spans)) continue;
+                foreach (var span in spans)
+                {
+                    if (span.Background is null) continue;
+                    var segment = new SimpleSegment(span.Start, span.End - span.Start);
+                    foreach (var rect in BackgroundGeometryBuilder.GetRectsForSegment(textView, segment))
+                        drawingContext.FillRectangle(span.Background, rect);
+                }
+            }
+        }
+    }
+
+    private void EnsureParsed(TextDocument document)
+    {
+        if (!ReferenceEquals(_document, document) || !ReferenceEquals(_version, document.Version))
+            Parse(document);
+    }
+
     protected override void ColorizeLine(DocumentLine line)
     {
         var document = CurrentContext.Document;
-        if (!ReferenceEquals(_document, document) || !ReferenceEquals(_version, document.Version))
-            Parse(document);
+        EnsureParsed(document);
         if (!_lines.TryGetValue(line.LineNumber, out var spans)) return;
         foreach (var span in spans)
             ChangeLinePart(span.Start, span.End, element =>
             {
                 element.TextRunProperties.SetForegroundBrush(span.Foreground);
-                if (span.Background is not null) element.TextRunProperties.SetBackgroundBrush(span.Background);
                 if (ReferenceEquals(span.Foreground, Code))
                     element.TextRunProperties.SetTypeface(Typography.EditorTypeface);
             });
@@ -114,12 +141,14 @@ public sealed class LightPlusMarkdown : DocumentColorizingTransformer
                 switch (block)
                 {
                     case CodeBlock code:
-                        // All languages, including Mermaid, use the same code color.
+                        // All languages, including D2, use the same code color.
                         // An unfinished fence can have a span ending at its opener
                         // while its content lines already extend to end-of-document.
-                        var codeEnd = code.Lines.Lines.Take(code.Lines.Count)
-                            .Select(l => l.Slice.End + 1).DefaultIfEmpty(code.Span.End + 1).Max();
-                        Paint(code.Span.Start, Math.Max(code.Span.End + 1, codeEnd), Code, CodeBackground);
+                        var codeEnd = code.Span.End + 1;
+                        // The backing array is null until the first content line.
+                        for (var i = 0; i < code.Lines.Count; i++)
+                            codeEnd = Math.Max(codeEnd, code.Lines.Lines[i].Slice.End + 1);
+                        Paint(code.Span.Start, codeEnd, Code, CodeBackground);
                         continue;
                     case HeadingBlock { IsSetext: true } underlined:
                         if (underlined.Level == 2)

@@ -16,8 +16,6 @@ public sealed partial class MainWindow
             _searchResultsPane.IsVisible = false;
             _searchKeyword.Text = "";
             _searchResults.ItemsSource = null;
-            _lastPageSearch = "";
-            _lastSearchPage = null;
             ClearWorkspaceHighlights();
             CancelPendingCommand();
             FocusEditingSurface();
@@ -28,13 +26,8 @@ public sealed partial class MainWindow
             e.Handled = true;
             CancelPendingCommand();
             var currentNote = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-            if (currentNote) _searchScope.SelectedIndex = (int)WorkspaceSearchScope.SelectedNote;
-            if (!currentNote && _searchResultsPane.IsVisible)
-            {
-                _searchResultsPane.IsVisible = false;
-                FocusEditingSurface();
-                return;
-            }
+            _searchScope.SelectedIndex = (int)(currentNote
+                ? WorkspaceSearchScope.SelectedNote : WorkspaceSearchScope.CurrentPage);
             _searchKeyword.Focus();
             _searchKeyword.CaretIndex = _searchKeyword.Text?.Length ?? 0;
             _searchKeyword.SelectionStart = _searchKeyword.SelectionEnd = _searchKeyword.CaretIndex;
