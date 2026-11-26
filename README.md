@@ -42,14 +42,14 @@
 
 GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。各GitブランチでビルドしたZIPを、そのブランチの `macos/`・`windows/` 直下へ配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
 
-このdevelopブランチのD2対応開発版は **1.1.0-dev.6** です。
+このmainブランチの正式版は **1.1.0** です。
 
 | 開発版の対象 | ダウンロード |
 |---|---|
-| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-dev.6-osx-arm64.zip](macos/ViMarkdown-1.1.0-dev.6-osx-arm64.zip) |
-| Windows x64 | [ViMarkdown-1.1.0-dev.6-win-x64.zip](windows/ViMarkdown-1.1.0-dev.6-win-x64.zip) |
+| Apple Silicon搭載Mac | [ViMarkdown-1.1.0-osx-arm64.zip](macos/ViMarkdown-1.1.0-osx-arm64.zip) |
+| Windows x64 | [ViMarkdown-1.1.0-win-x64.zip](windows/ViMarkdown-1.1.0-win-x64.zip) |
 
-各OSフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。正式版は[mainブランチ](https://github.com/nokura-dev/ViMarkdown/tree/main)から取得してください。このdevelopブランチには開発版のみ配置します。
+各OSフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。このmainブランチには正式版のみ配置します。開発版は[developブランチ](https://github.com/nokura-dev/ViMarkdown/tree/develop)から取得できます。
 
 **macOS:** ZIPを展開し、`ViMarkdown.app` をApplicationsフォルダへコピーして起動します。
 
@@ -66,7 +66,7 @@ dotnet restore src/ViMarkdown --packages .nuget/packages
 dotnet run --project src/ViMarkdown --no-restore
 ```
 
-Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。開発版のVersionは1.1.0-dev.6です。D2は起動前に対象OS用CLIを準備してください。
+Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。正式版のVersionは1.1.0です。D2は起動前に対象OS用CLIを準備してください。
 
 ## 最初のページを書く
 
@@ -537,9 +537,9 @@ GitHub Actionsの `Packages` を手動実行すると、macOS ARM64・Windows x6
 
 ### GitHubへの掲載構成
 
-ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は1.1に向けた開発用ブランチです。各ブランチでビルドしたZIPだけを、そのブランチのOS別フォルダ直下に置きます。developにはmainの正式版ZIPを混在させず、branchサブフォルダも作りません。
+ソース・テスト・ビルドスクリプトと配布ZIPを、`https://github.com/nokura-dev/ViMarkdown.git` の同じリポジトリで管理します。`main` は正式版、`develop` は開発用ブランチです。各ブランチでビルドしたZIPだけを、そのブランチのOS別フォルダ直下に置きます。developにはmainの正式版ZIPを混在させず、branchサブフォルダも作りません。
 
-開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。現在は1.1.0-dev.6、次回は1.1.0-dev.7です。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。2026年11月21日の配置変更はユーザー指定により1.1.0-dev.1のまま、再ビルドせず行いました。
+開発ブランチの版はGitHub掲載ごとに `dev.N` の数字を1つ増やします。developの最新掲載版は1.1.0-dev.6です。今回のmainへの統合では、ユーザー指定により正式版1.1.0としています。mainの掲載では従来どおりパッチ番号を1つ増やします。ビルドのみでは版を変更しません。2026年11月21日の配置変更はユーザー指定により1.1.0-dev.1のまま、再ビルドせず行いました。
 
 ```text
 ViMarkdown/                      # 公開用リポジトリのルート
@@ -551,16 +551,16 @@ ViMarkdown/                      # 公開用リポジトリのルート
 ├── docs/
 ├── tools/
 ├── macos/
-│   ├── ViMarkdown-1.1.0-dev.6-osx-arm64.zip
+│   ├── ViMarkdown-1.1.0-osx-arm64.zip
 │   ├── SHA256SUMS
 │   └── BUILD-INFO.txt
 └── windows/
-    ├── ViMarkdown-1.1.0-dev.6-win-x64.zip
+    ├── ViMarkdown-1.1.0-win-x64.zip
     ├── SHA256SUMS
     └── BUILD-INFO.txt
 ```
 
-例えばdevelopの `build/ViMarkdown-1.1.0-dev.6-osx-arm64.zip` は、`macos/ViMarkdown-1.1.0-dev.6-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。開発版にはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。mainの正式版は別ブランチで保持します。
+例えばmainの `build/ViMarkdown-1.1.0-osx-arm64.zip` は、`macos/ViMarkdown-1.1.0-osx-arm64.zip` にコピーします。ZIPのまま掲載することで、macOSの `.app` の構造と実行権限を保持します。配布ZIPにはバージョンを含むファイル名を使い、ビルド元のコミットIDとチェックサムを記録します。developの開発版は別ブランチで保持します。
 
 現在のパッケージ生成スクリプトが行うのはローカルのZIP生成までです。配布先へのコピー・リネームとGitHubへの反映は別途行います。テストは明示的に依頼された場合に実行し、CIで実行する場合は `--all` を使用します。
 
@@ -568,19 +568,17 @@ ViMarkdown/                      # 公開用リポジトリのルート
 
 ### 公開パッケージの検証状況
 
-2026年11月20日、macOS ARM64環境の.NET SDK 10.0.402で当時のソースから自己完結型パッケージを生成しました。現在の標準配布対象は以下の2種類です。配布前の自動チェックは `--all` で全33スイート・2,363件成功しました。この結果はmacOS ARM64環境での結果です。その後のステータスバー・描画・移動処理の変更については、別途 `--affected` により33スイート・2,520件の成功を確認しています。それ以降の空行・引用・水平線・チェックボックス・定義リスト・コード背景の変更は、依頼によりテストを省略しています。今回、タイムラインの時計アイコン削除とタイトルバー表記の統一を含むバージョン1.0.1のソースからmacOS ARM64・Windows x64の配布パッケージを再生成しました。今回のビルドでは依頼によりテストを実行していません。
+2026年11月26日、developの変更をmainへ統合し、正式版1.1.0としてmacOS ARM64・Windows x64の自己完結型パッケージを生成しています。今回の配布ビルドでは、依頼に従いテストを省略しています。
 
-| 対象 | ビルド | 起動・導入の確認 |
+| 対象 | パッケージ | 起動・導入の確認 |
 |---|---|---|
-| macOS ARM64 | 成功 | アドホック署名検証済み。今回のビルドの起動・導入は未確認（以前のビルドでは一時DBで稼働・DB作成を確認） |
-| Windows x64 | クロスビルド成功 | 実行ファイルへのアイコン埋め込みを確認。今回のビルドはWindows実機での起動・導入未確認（以前の配布版はユーザー確認済み） |
+| macOS ARM64 | アドホック署名付き | 今回のビルドの起動・導入は未確認 |
+| Windows x64 | macOSでクロスビルド | 今回のビルドはWindows実機での起動・導入未確認 |
 
-開発版1.1.0-dev.1ではD2描画・外部共有フォント・参照制限を導入しました。macOS上で実CLIを含む34スイート・2,565チェックの成功を確認した後、診断表示の余白を修正しています。余白修正後および今回の配布ビルドではテストをスキップしています。Windows版は利用者から動作OKの確認を受けています。今回生成したZIPそれぞれの実機インストール・画面操作を網羅確認したものではありません。
+1.1.0にはD2図の表示・Markdown/DOCX出力、初回起動時のREADMEとMarkdown記法サンプル、タイムラインの「昨日」、更新日時の相対表記、画像・D2図の一時リサイズとコピー、貼り付け画像の長辺最大2560pxへの縮小、スライドショー、ごみ箱からの即時完全削除、およびdevelopでの各種修正を含みます。既存のMermaidフェンスは通常のコードとして保持し、自動変換しません。
 
-developでは、D2図の表示・出力、初回起動時のREADMEとMarkdown記法サンプル、タイムラインの「昨日」、更新日時の相対表記、画像・D2図の一時リサイズとコピー、貼り付け画像の長辺最大2560pxへの縮小、スライドショー、ごみ箱からの即時完全削除を追加しています。
+過去の開発版ではmacOS上で実D2 CLIを含む34スイート・2,565チェックの成功を確認し、その後の変更でも選択的チェックの成功記録があります。これは今回の1.1.0全体の検証結果を示すものではありません。開発版のWindows動作は利用者から確認を受けていますが、今回のZIPそれぞれの実機インストール・画面操作を網羅確認したものではありません。
 
-現在の1.1.0-dev.6はmacOS ARM64・Windows x64ともビルド済みです。ZIPの整合性・同梱ファイル・チェックサムとmacOSのアドホック署名を確認しています。今回の配布ビルドではテストを省略しており、両OSでの起動・操作確認は未実施です。
+ZIPの整合性・同梱ファイル・チェックサムとmacOSのアドホック署名を掲載前に確認します。Developer ID署名・公証とWindowsコード署名は未実施です。旧正式版1.0.1のZIPはローカルと過去のGit履歴で保持します。
 
-Developer ID署名・公証とWindowsコード署名は未実施です。macOS版はアドホック署名です。1.0.1の正式版ZIPは変更していません。
-
-Intel Mac用・Windows ARM64用のZIPはGitHubの現行ブランチから削除し、標準のビルド・掲載対象から除外しています。
+Intel Mac用・Windows ARM64用のZIPは標準のビルド・掲載対象から除外しています。
