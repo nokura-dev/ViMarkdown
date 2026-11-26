@@ -62,13 +62,16 @@ public sealed partial class MainWindow
     {
         var id = _activePageId;
         var before = _pageContent.Text;
+        var generation = _modeSwitchGeneration;
+        bool StillEditing() => IsVisible && !IsPageDetached && !_isSlideshow &&
+            generation == _modeSwitchGeneration && id == _activePageId && before == _pageContent.Text;
         try
         {
-            if (id is null || Clipboard is null) return;
+            if (id is null || IsPageDetached || Clipboard is null) return;
             // Prefer encoded PNG: bitmap decoding discards its DPI metadata.
             var format = OperatingSystem.IsMacOS() ? "public.png" : OperatingSystem.IsWindows() ? "PNG" : "image/png";
             var png = await Clipboard.TryGetValueAsync(DataFormat.CreateBytesPlatformFormat(format));
-            if (_isSlideshow || id != _activePageId || before != _pageContent.Text) return;
+            if (!StillEditing()) return;
             if (png is not null && png.AsSpan().StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
             {
                 InsertEncodedImage(png, ImageContent.ClipboardDpi(png, OperatingSystem.IsMacOS()));
@@ -76,14 +79,14 @@ public sealed partial class MainWindow
             }
             var tiff = OperatingSystem.IsMacOS()
                 ? await Clipboard.TryGetValueAsync(DataFormat.CreateBytesPlatformFormat("public.tiff")) : null;
-            if (_isSlideshow || id != _activePageId || before != _pageContent.Text) return;
+            if (!StillEditing()) return;
             using var bitmap = await Clipboard.TryGetBitmapAsync();
-            if (_isSlideshow || id != _activePageId || before != _pageContent.Text) return;
+            if (!StillEditing()) return;
             if (bitmap is not null) InsertImage(bitmap, ImageContent.ClipboardDpi(tiff, OperatingSystem.IsMacOS()));
             else
             {
                 var text = await Clipboard.TryGetTextAsync();
-                if (!_isSlideshow && id == _activePageId && before == _pageContent.Text && text is not null) InsertMarkup(text);
+                if (StillEditing() && text is not null) InsertMarkup(text);
             }
         }
         catch (Exception ex) { _saveStatus.Text = "貼り付け失敗: " + ex.Message; }

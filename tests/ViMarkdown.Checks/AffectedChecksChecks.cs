@@ -44,7 +44,7 @@ internal static class AffectedChecksChecks
             nameof(ParagraphNavigationChecks), nameof(NavigationChecks), nameof(ImeChecks), nameof(FocusChecks),
             nameof(HistoryChecks), nameof(WorkspaceShortcutChecks), nameof(WorkspaceSearchChecks) })
             check(keymap.Includes(suite), "キーマップ変更の必須回帰: " + suite);
-        check(!keymap.Includes(nameof(DocxChecks)), "無関係なDOCXの単体検証はキーマップ変更では選ばない");
+        check(!keymap.Includes(nameof(DocxChecks)), "無関係なdocxの単体検証はキーマップ変更では選ばない");
         check(keymap.Reasons.Values.All(r => r.Any(reason => reason.Contains("VimKeyMap.cs"))), "選択理由に変更ファイルを表示");
 
         foreach (var path in new[] { "src/ViMarkdown/NewInput.cs", "tests/ViMarkdown.Checks/NewChecks.cs" })

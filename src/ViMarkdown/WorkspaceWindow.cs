@@ -20,16 +20,30 @@ public sealed partial class MainWindow
 
     private Control BuildWorkspace(Control editor, string? databasePath)
     {
-        _store = new WorkspaceStore(databasePath ?? Environment.GetEnvironmentVariable("VIMARKDOWN_DB") ??
+        _store = _workspaceOwner?._store ?? new WorkspaceStore(databasePath ?? Environment.GetEnvironmentVariable("VIMARKDOWN_DB") ??
             System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ViMarkdown", "workspace.db"));
         ConfigureWindowPlacement();
         if (Enum.TryParse<PageSortOrder>(_store.GetSetting("page-sort"), out var order) && Enum.IsDefined(order)) _pageSortOrder = order;
         _rich.ImageResolver = _store.GetImage;
         _rich.ImageCopyRequested += async data => await CopyImageAsync(data);
         _saveTimer.Tick += (_, _) => SaveCurrent();
-        Closing += (_, e) => { if (!SaveCurrent()) e.Cancel = true; };
-        Closed += (_, _) => { _saveTimer.Stop(); SaveWindowPlacement(); _store.Dispose(); };
-        var grid = BuildWorkspaceLayout(editor);
+        Closing += (_, e) => { if (!PrepareEditorWindowsForClose()) e.Cancel = true; };
+        Closed += (_, _) =>
+        {
+            _saveTimer.Stop();
+            ++_modeSwitchGeneration;
+            _rich.ImageResolver = null;
+            _rich.ClearPage();
+            try { SaveWindowPlacement(); }
+            catch (Exception) { /* Closing must release the page even if placement cannot be saved. */ }
+            finally
+            {
+                if (!IsDetachedEditor) _store.Dispose();
+                DetachedEditorClosed();
+            }
+        };
+        if (IsDetachedEditor) return BuildDetachedEditorLayout(editor);
+        var grid = BuildWorkspaceLayout(WrapEditorForDetachment(editor));
         _notes.SelectionChanged += (_, _) =>
         {
             if (_rebuilding || _notes.SelectedItem is not NoteChoice choice) return;
@@ -76,6 +90,7 @@ public sealed partial class MainWindow
     }
     private void ReloadLists(bool openTimelinePage = true)
     {
+        if (IsDetachedEditor) return;
         var focusedList = _notes.IsKeyboardFocusWithin ? _notes : _pages.IsKeyboardFocusWithin ? _pages : null;
         var selected = SelectedPageIds();
         _rebuilding = true;
@@ -98,8 +113,11 @@ public sealed partial class MainWindow
         finally
         {
             _rebuilding = false;
-            if (_activePageId is null) _notes.Focus();
-            else focusedList?.Focus();
+            if (IsActive)
+            {
+                if (_activePageId is null) _notes.Focus();
+                else focusedList?.Focus();
+            }
         }
     }
     private void OpenPage(long? id)
@@ -114,15 +132,16 @@ public sealed partial class MainWindow
             _rich.ClearPage();
             foreach (var markdown in _editor.TextArea.TextView.LineTransformers.OfType<LightPlusMarkdown>())
                 markdown.ClearCache();
-            _activePageId = item?.Id; _pageRangeEndId = _activePageId; _pageContent.Text = item?.Body ?? ""; _pageContent.UndoStack.ClearAll();
+            _activePageId = item?.Id; _pageRangeEndId = _activePageId; _pageContent.Text = IsPageDetached ? "" : item?.Body ?? ""; _pageContent.UndoStack.ClearAll();
             _caret = 0; _anchor = null; _editor.CaretOffset = 0; _modeSwitchGeneration++;
             _preview.Offset = default; _editor.ScrollToHome();
-            _editor.IsEnabled = _rich.IsEnabled = item is not null;
+            _editor.IsEnabled = _rich.IsEnabled = item is not null && !IsPageDetached;
             _paneBodies[3].IsEnabled = item is not null;
             _editor.IsVisible = item is not null && _mode == EditorMode.Insert;
             _preview.IsVisible = item is not null && _mode != EditorMode.Insert;
             Title = item is null ? "ViMarkdown" : FormatPageWindowTitle(item.Name);
-            _store.SetSetting("active", _activePageId?.ToString());
+            if (!IsDetachedEditor) _store.SetSetting("active", _activePageId?.ToString());
+            UpdateDetachedPageNotice();
             _saveStatus.Text = item is null ? "ページを選択するか、作成してください" : "保存済み";
             Refresh();
         }
@@ -131,7 +150,7 @@ public sealed partial class MainWindow
     }
     private void ScheduleSave()
     {
-        if (_loading || _activePageId is null) return;
+        if (_loading || _activePageId is null || IsPageDetached) return;
         _dirty = true; _saveStatus.Text = "未保存…"; _saveTimer.Stop(); _saveTimer.Start();
     }
     private bool UpdateAutomaticPageName(long id)
@@ -152,12 +171,13 @@ public sealed partial class MainWindow
     private bool SaveCurrent()
     {
         _saveTimer.Stop();
-        if (!_dirty || _activePageId is null) return true;
+        if (!_dirty || _activePageId is null || IsPageDetached) return true;
         try
         {
             _store.Save(_activePageId.Value, _pageContent.Text);
             var renamed = UpdateAutomaticPageName(_activePageId.Value);
             _dirty = false; _saveStatus.Text = "保存済み";
+            if (IsDetachedEditor) _workspaceOwner!.RefreshDetachedPageMetadata();
             if ((renamed || _pageSortOrder != PageSortOrder.Name || _timelinePeriod != 0) && !_rebuilding) ReloadLists();
             else
             {

@@ -65,9 +65,9 @@ dotnet run --project tests/ViMarkdown.Checks --no-restore -- --suite VimCommandC
 | 削除・貼り付け・矩形入力・字下げ | `VimEditing.cs` |
 | 検索・Exコマンドと正規表現の変換 | `VimSearch.cs`、`VimRegex.cs` |
 | 原文行・書記素・単語・テキストオブジェクトの範囲計算 | `SourceNavigation.cs` |
-| MD／DOCX共通のファイル名生成 | `ExportFileNames.cs` |
+| MD／docx共通のファイル名生成 | `ExportFileNames.cs` |
 
-`SourceNavigation` はウィンドウやリッチ表示に依存せず、共有の `TextDocument` を参照します。DOCX出力は共通の命名処理を使い、MDファイル名からページIDを解析しません。一覧更新は一度取得したデータをノート・ページ両方で使い、移動先の検証は本文全件の読み込みを避けています。
+`SourceNavigation` はウィンドウやリッチ表示に依存せず、共有の `TextDocument` を参照します。docx出力は共通の命名処理を使い、MDファイル名からページIDを解析しません。一覧更新は一度取得したデータをノート・ページ両方で使い、移動先の検証は本文全件の読み込みを避けています。
 
 既存テストは676項目から606項目へ整理しました（70項目削減）。作業中に追加されたページ切り替え時の位置合わせチェック141項目も保持し、当時の合計は747項目です。
 
@@ -77,7 +77,7 @@ dotnet run --project tests/ViMarkdown.Checks --no-restore -- --suite VimCommandC
 - 重複する行移動・削除チェックを整理。表示移動は `NavigationChecks`、Vim操作は `VimCommandChecks`、改行形式は `LineBreakChecks` で確認。
 - 固定のボタン高さ、スクロール設定値、内部のテキストrun設定の直接比較を削除。実際の描画位置・スクロール・クリック対応を維持。
 
-Unicode書記素、LF／CRLF／CR、IME未確定文字、ページ保存と再起動、DB移行、画像密度、表、MD／DOCX出力、Mermaidのキャッシュ・診断は維持しています。`DeleteChecks` は実際の対象に合わせて `VimCommandChecks` へ改名しました。
+Unicode書記素、LF／CRLF／CR、IME未確定文字、ページ保存と再起動、DB移行、画像密度、表、MD／docx出力、Mermaidのキャッシュ・診断は維持しています。`DeleteChecks` は実際の対象に合わせて `VimCommandChecks` へ改名しました。
 
 画面を使うチェックは `EditorSession` で準備・入力・後片付けを共通化しました。通常実行ではPNGを保存せず、既存の `--render*` オプションで必要な画像だけ出力します。
 

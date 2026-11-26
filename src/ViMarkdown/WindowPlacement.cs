@@ -10,12 +10,16 @@ public sealed partial class MainWindow
     private Placement? _normalPlacement;
     private bool _placementOpened;
 
+    private string WindowPlacementSettingKey => IsDetachedEditor
+        ? "editor-window-placement:" + _detachedPageId!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : "window-placement";
+
     private void ConfigureWindowPlacement()
     {
         Placement? saved = null;
         try
         {
-            if (_store.GetSetting("window-placement") is { } json)
+            if (_store.GetSetting(WindowPlacementSettingKey) is { } json)
                 saved = JsonSerializer.Deserialize<Placement>(json);
         }
         catch (JsonException) { /* Ignore invalid settings and use the default size. */ }
@@ -57,7 +61,7 @@ public sealed partial class MainWindow
     private void SaveWindowPlacement()
     {
         if (_normalPlacement is { } placement)
-            _store.SetSetting("window-placement", JsonSerializer.Serialize(placement with
+            _store.SetSetting(WindowPlacementSettingKey, JsonSerializer.Serialize(placement with
             {
                 Maximized = (_isSlideshow ? _slideshowWindowState : WindowState) == WindowState.Maximized
             }));

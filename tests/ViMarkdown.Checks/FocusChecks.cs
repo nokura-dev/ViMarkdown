@@ -38,7 +38,7 @@ internal static class FocusChecks
                 Dispatcher.UIThread.RunJobs();
             }
             var toolbarButtons = window.GetVisualDescendants().OfType<Button>()
-                .Where(b => b.Name != "TrashButton" && b.Name?.StartsWith("Timeline") != true).ToArray();
+                .Where(b => b.Name != "TrashButton" && b.Name != "ActivateDetachedEditor" && b.Name?.StartsWith("Timeline") != true).ToArray();
             check(toolbarButtons.Length >= 10 && toolbarButtons.All(b => !b.Focusable && !b.IsTabStop && !b.Focus()),
                 "各ツールバーの操作ボタンはTab・方向キー・明示的なFocusでもフォーカスを受け取らない");
             var pages = ((Grid)window.Content!).Children.Single(c => Grid.GetColumn(c) == 3)

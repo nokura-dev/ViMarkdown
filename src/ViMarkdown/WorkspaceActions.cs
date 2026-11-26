@@ -51,15 +51,25 @@ public sealed partial class MainWindow
                 UpdateStatus();
             }
         });
+        if (!notes)
+        {
+            async Task Import()
+            {
+                try { if (!OwnedWindows.Any(w => w.IsVisible)) await ImportMarkdownPageAsync(); }
+                catch (Exception ex) { _saveStatus.Text = "読み込み失敗: " + ex.Message; }
+            }
+            menuActions.Add(("ページ作成(mdファイルから)", Import));
+        }
         long? Selected() => notes ? _noteId : (_pages.SelectedItem as WorkspaceItem)?.Id;
         Action("名前変更", async anchor =>
         {
             if (Selected() is not { } id) return;
             var name = await AskName(anchor, "名前変更", _store.Items().First(i => i.Id == id).Name);
             if (name is null) return; _store.Rename(id, name);
+            if (_detachedEditors.TryGetValue(id, out var window)) window._automaticPageNameId = null;
             if (_automaticPageNameId == id) _automaticPageNameId = null;
             if (_activePageId == id) Title = FormatPageWindowTitle(name);
-            ReloadLists();
+            RefreshDetachedPageMetadata();
         });
         if (!notes) Action("移動", async anchor =>
         {
@@ -72,8 +82,9 @@ public sealed partial class MainWindow
         Action("削除", anchor =>
         {
             var ids = notes ? (_noteId is { } id ? new[] { id } : Array.Empty<long>()) : SelectedPageIds();
-            if (ids.Length == 0 || !SaveCurrent()) return Task.CompletedTask;
+            if (ids.Length == 0 || !SaveAllEditors()) return Task.CompletedTask;
             _store.DeleteItems(ids);
+            RefreshDetachedPageMetadata();
             var remaining = _store.Items();
             if (_activePageId.HasValue && !remaining.Any(i => i.Id == _activePageId)) OpenPage(null);
             if (_noteId.HasValue && !remaining.Any(i => i.Id == _noteId)) _noteId = null;

@@ -27,40 +27,57 @@ public static class DocxExport
     };
 
     public static async Task<MarkdownExportResult> WriteAsync(string destination, IReadOnlyList<WorkspaceItem> pages,
-        Func<string, byte[]?> imageResolver, Func<string, D2Result>? d2Resolver = null)
+        Func<string, byte[]?> imageResolver, Func<string, D2Result>? d2Resolver = null, string? noteName = null)
     {
         // Reuse the Markdown media collector, including diagram diagnostics and placeholders.
         var stage = Path.Combine(Path.GetTempPath(), "ViMarkdown-docx-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stage);
-        string? output = null;
         try
         {
             var collected = d2Resolver is null
-                ? await MarkdownExport.WriteAsync(stage, pages, imageResolver)
-                : MarkdownExport.Write(stage, pages, imageResolver, d2Resolver);
+                ? await MarkdownExport.WriteAsync(stage, pages, imageResolver, pageMediaDirectories: false, noteName: noteName, renderDiagrams: true)
+                : MarkdownExport.Write(stage, pages, imageResolver, d2Resolver, pageMediaDirectories: false, noteName: noteName, renderDiagrams: true);
             Directory.CreateDirectory(destination);
-            output = Path.Combine(destination, "DocxExport-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
-            Directory.CreateDirectory(output);
+            using var output = new ExportOutput(destination);
+            var pageFiles = new Dictionary<long, string>();
+            var errorReports = new Dictionary<long, string>();
             foreach (var page in pages)
             {
-                var stem = ExportFileNames.PageStem(page);
-                var markdown = File.ReadAllText(Path.Combine(collected.Directory, stem + ".md"));
-                Write(Path.Combine(output, stem + ".docx"), page.Name, markdown, collected.Directory);
+                var fileName = ExportFileNames.Allocate(destination, page, ".docx", reserveErrorReport: collected.ErrorReports.ContainsKey(page.Id), noteName: noteName);
+                pageFiles.Add(page.Id, fileName);
+                var markdown = File.ReadAllText(Path.Combine(collected.Directory, collected.PageFiles[page.Id]));
+                using var stream = output.CreateFile(fileName);
+                Write(stream, page.Name, markdown, collected.Directory);
             }
-            foreach (var report in Directory.GetFiles(collected.Directory, "*.txt")) File.Copy(report, Path.Combine(output, Path.GetFileName(report)));
-            return collected with { Directory = output };
+            foreach (var (pageId, sourceName) in collected.ErrorReports)
+            {
+                var text = File.ReadAllText(Path.Combine(collected.Directory, sourceName));
+                var body = text[(text.IndexOf("\n\n", StringComparison.Ordinal) + 2)..];
+                var reportName = Path.GetFileNameWithoutExtension(pageFiles[pageId]) + "_error.txt";
+                output.WriteText(reportName, "対象ファイル:\n" + pageFiles[pageId] + "\n\n" + body);
+                errorReports.Add(pageId, reportName);
+            }
+            output.Commit();
+            return collected with
+            {
+                Directory = destination, PageFiles = pageFiles,
+                ErrorReports = errorReports
+            };
         }
-        catch { if (output is not null && Directory.Exists(output)) Directory.Delete(output, true); throw; }
         finally { Directory.Delete(stage, true); }
     }
 
-    private static void Write(string path, string name, string markdown, string mediaDirectory)
+    private static void Write(Stream outputStream, string name, string markdown, string mediaDirectory)
     {
-        using var package = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document);
+        using var package = WordprocessingDocument.Create(outputStream, WordprocessingDocumentType.Document);
         var main = package.AddMainDocumentPart();
         main.AddNewPart<StyleDefinitionsPart>().Styles = new W.Styles(new W.DocDefaults(
             new W.RunPropertiesDefault(new W.RunPropertiesBaseStyle(Fonts(),
-                new W.FontSize { Val = BodySize }, new W.FontSizeComplexScript { Val = BodySize }))));
+                new W.FontSize { Val = BodySize }, new W.FontSizeComplexScript { Val = BodySize }))),
+            new W.Style(new W.StyleName { Val = "Normal" },
+                new W.StyleRunProperties(Fonts(), new W.Bold { Val = false }, new W.Italic { Val = false },
+                    new W.FontSize { Val = BodySize }, new W.FontSizeComplexScript { Val = BodySize }))
+            { Type = W.StyleValues.Paragraph, StyleId = "Normal" });
         var body = new W.Body();
         main.Document = new W.Document(body);
         uint imageId = 0;
@@ -116,10 +133,39 @@ public static class DocxExport
                     default: paragraph.Append(Text(item.ToString() ?? "")); break;
                 }
         }
-        void Blocks(ContainerBlock blocks, OpenXmlCompositeElement target)
+        void Blocks(ContainerBlock blocks, OpenXmlCompositeElement target, int listDepth = 0, string? marker = null)
         {
+            void PrepareParagraph(W.Paragraph paragraph)
+            {
+                if (listDepth > 0)
+                {
+                    paragraph.ParagraphProperties ??= new W.ParagraphProperties();
+                    paragraph.ParagraphProperties.AddChild(new W.SpacingBetweenLines { Before = "0", After = "0" }, true);
+                    paragraph.ParagraphProperties.AddChild(new W.Indentation
+                    {
+                        Left = (listDepth * 360).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        Hanging = marker is null ? "0" : "360"
+                    }, true);
+                }
+                if (marker is not null)
+                {
+                    paragraph.Append(Text(marker));
+                    marker = null;
+                }
+            }
             foreach (var block in blocks)
             {
+                if (block is ListBlock list)
+                {
+                    var number = int.TryParse(list.OrderedStart, out var start) ? start : 1;
+                    foreach (var item in list.OfType<ListItemBlock>())
+                    {
+                        var label = list.IsOrdered
+                            ? (number++).ToString(System.Globalization.CultureInfo.InvariantCulture) + ". " : "• ";
+                        Blocks(item, target, listDepth + 1, label);
+                    }
+                    continue;
+                }
                 if (block is Table table)
                 {
                     var result = new W.Table(new W.TableProperties(new W.TableWidth { Width = "5000", Type = W.TableWidthUnitValues.Pct },
@@ -144,16 +190,40 @@ public static class DocxExport
                 }
                 if (block is CodeBlock code)
                 {
-                    foreach (var line in code.Lines.ToString().Split('\n')) target.Append(new W.Paragraph(Text(line.TrimEnd('\r'))));
+                    foreach (var line in code.Lines.ToString().Split('\n'))
+                    {
+                        var paragraph = new W.Paragraph();
+                        PrepareParagraph(paragraph);
+                        paragraph.Append(Text(line.TrimEnd('\r')));
+                        target.Append(paragraph);
+                    }
                 }
                 else if (block is LeafBlock leaf)
                 {
+                    if (block is HeadingBlock { Level: 1 or 2 })
+                    {
+                        // Normalize trailing blank paragraphs to one before a level-one or level-two heading.
+                        while (target.LastChild is W.Paragraph previous &&
+                            string.IsNullOrWhiteSpace(previous.InnerText) &&
+                            !previous.Descendants<W.Drawing>().Any() && !previous.Descendants<W.Break>().Any())
+                            previous.Remove();
+                        // Empty paragraphs use paragraph-mark formatting, not just the empty text run.
+                        target.Append(new W.Paragraph(new W.ParagraphProperties(
+                            new W.ParagraphStyleId { Val = "Normal" },
+                            new W.KeepNext { Val = false }, new W.KeepLines { Val = false },
+                            new W.PageBreakBefore { Val = false },
+                            new W.SpacingBetweenLines { Before = "0", After = "0", Line = "240", LineRule = W.LineSpacingRuleValues.Auto },
+                            new W.OutlineLevel { Val = 9 },
+                            new W.ParagraphMarkRunProperties(Fonts(), new W.Bold { Val = false }, new W.Italic { Val = false },
+                                new W.FontSize { Val = BodySize }, new W.FontSizeComplexScript { Val = BodySize })), Text("")));
+                    }
                     var p = new W.Paragraph();
                     if (block is HeadingBlock heading)
                         p.Append(new W.ParagraphProperties(new W.KeepNext(), new W.OutlineLevel { Val = heading.Level - 1 },
                             new W.ParagraphMarkRunProperties(Fonts(), new W.Bold(),
                                 new W.FontSize { Val = HeadingSizes[heading.Level - 1] },
                                 new W.FontSizeComplexScript { Val = HeadingSizes[heading.Level - 1] })));
+                    PrepareParagraph(p);
                     Inline(leaf.Inline, p, block is HeadingBlock);
                     if (block is HeadingBlock h)
                         foreach (var run in p.Elements<W.Run>())
@@ -165,8 +235,8 @@ public static class DocxExport
                 }
                 else if (block is ContainerBlock nested)
                 {
-                    if (block is ListItemBlock) target.Append(new W.Paragraph(Text("•")));
-                    Blocks(nested, target);
+                    Blocks(nested, target, listDepth, marker);
+                    marker = null;
                 }
             }
         }

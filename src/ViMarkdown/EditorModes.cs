@@ -44,6 +44,7 @@ public sealed partial class MainWindow
 
     private void SwitchMode(EditorMode mode, bool focusEditor = true)
     {
+        if (IsPageDetached) { if (focusEditor) _activateDetachedEditor?.Focus(); return; }
         if (_activePageId is null) { if (focusEditor) FocusEditingSurface(); return; }
         _verticalDisplayX = null;
         CancelPendingCommand();
@@ -120,6 +121,7 @@ public sealed partial class MainWindow
     }
     private void FocusEditingSurface()
     {
+        if (IsPageDetached) { _activateDetachedEditor?.Focus(); return; }
         if (_activePageId is null) { _notes.Focus(); return; }
         // TextEditor is a focusable wrapper; only TextArea accepts text input.
         if (_mode == EditorMode.Insert) _editor.TextArea.Focus();

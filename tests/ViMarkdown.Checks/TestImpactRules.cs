@@ -8,7 +8,7 @@ internal static class TestImpactRules
         nameof(ModeAlignmentChecks), nameof(InsertLineEmphasisChecks), nameof(MarkdownHighlightChecks),
         nameof(EditorViewChecks), nameof(PaneNavigationChecks), nameof(FocusChecks), nameof(ImeChecks), nameof(TrashChecks),
         nameof(WorkspaceChecks), nameof(WorkspaceSearchChecks), nameof(WorkspaceShortcutChecks),
-        nameof(WorkspaceMenuChecks), nameof(PageMoveChecks), nameof(WindowPlacementChecks),
+        nameof(WorkspaceMenuChecks), nameof(DetachedEditorChecks), nameof(PageMoveChecks), nameof(WindowPlacementChecks),
         nameof(WorkspacePaneChecks), nameof(HistoryChecks), nameof(VimCommandChecks),
         nameof(MovementAuditChecks), nameof(LineEndEditingChecks), nameof(ParagraphNavigationChecks), nameof(ScrollChecks)
     ];

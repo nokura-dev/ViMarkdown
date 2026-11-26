@@ -73,14 +73,14 @@ internal static class WorkspaceChecks
             var lists = window.GetVisualDescendants().OfType<ListBox>().Where(list => list.ContextMenu is not null).ToList();
             check(lists.Count == 2 && lists.All(list => list.ContextMenu?.Items.OfType<MenuItem>()
                 .Select(item => item.Header?.ToString()).TakeLast(2).SequenceEqual(new[] { "md出力", "docx出力" }) == true),
-                "ノート一覧とページ一覧にMD・DOCX出力メニュー");
+                "ノート一覧とページ一覧にMD・docx出力メニュー");
             var notesList = lists.Single(list => list.Items.Cast<object>().Any(item => item.ToString() == "子"));
             var emptyNoteIndex = notesList.Items.Cast<object>().ToList().FindIndex(item => item.ToString() == "子");
             var emptyNoteContainer = notesList.ContainerFromIndex(emptyNoteIndex)!;
             foreach (var menuItem in notesList.ContextMenu!.Items.OfType<MenuItem>().TakeLast(2))
             {
                 emptyNoteContainer.RaiseEvent(new ContextRequestedEventArgs { RoutedEvent = Control.ContextRequestedEvent });
-                check(!menuItem.IsEnabled, "ページがない右クリックノートではMD・DOCX出力を無効にする");
+                check(!menuItem.IsEnabled, "ページがない右クリックノートではMD・docx出力を無効にする");
                 notesList.ContextMenu.Close();
             }
             // Right-clicking the empty note selects it and clears the active page.

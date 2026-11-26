@@ -28,13 +28,18 @@ public sealed partial class MainWindow : Window
     private bool _aligningContent;
     private bool _sourceRefreshPending;
     public MainWindow() : this(null) { }
-    public MainWindow(string? databasePath)
+    public MainWindow(string? databasePath) : this(databasePath, null, null) { }
+    private MainWindow(string? databasePath, MainWindow? workspaceOwner, long? pageId)
     {
+        _workspaceOwner = workspaceOwner;
+        _detachedPageId = pageId;
         _source = new SourceNavigation(_pageContent);
+        Activated += (_, _) => MacInputMode.SynchronizeMainWindow(this);
         Deactivated += (_, _) => CancelPendingCommand();
         Closed += (_, _) => CancelPendingCommand();
         Title = "ViMarkdown";
-        Width = 1400; MinWidth = MinimumWorkspaceWidth; Height = 760; MinHeight = MinimumWorkspaceHeight;
+        Width = IsDetachedEditor ? 900 : 1400; MinWidth = IsDetachedEditor ? MinimumEditorWidth : MinimumWorkspaceWidth;
+        Height = 760; MinHeight = IsDetachedEditor ? 300 : MinimumWorkspaceHeight;
         Background = WorkspaceColors.Editor;
         Foreground = WorkspaceColors.Text;
         _editor = CreateSourceEditor();

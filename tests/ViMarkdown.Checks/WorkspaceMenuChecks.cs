@@ -19,7 +19,7 @@ internal static class WorkspaceMenuChecks
             .GetVisualDescendants().OfType<ListBox>().Single();
         var notes = List(1);
         var pages = List(3);
-        MenuItem[] Items(ListBox list) => list.ContextMenu!.Items.OfType<MenuItem>().ToArray();
+        MenuItem[] Items(ListBox list) => list.ContextMenu!.Items.OfType<MenuItem>().Where(i => !Equals(i.Header, "別ウィンドウで開く") && !Equals(i.Header, "ページ作成(mdファイルから)")).ToArray();
         void Click(MenuItem item)
         {
             item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
@@ -44,13 +44,16 @@ internal static class WorkspaceMenuChecks
         }
         check(Items(notes).Select(i => i.Header).SequenceEqual(new[] { "ノート作成", "名前変更", "削除", "md出力", "docx出力" }),
             "ノートの右クリックメニューを指定順で表示する");
-        check(Items(pages).Select(i => i.Header).SequenceEqual(new[] { "ページ作成", "名前変更", "ノート移動", "削除", "md出力", "docx出力" }),
+        check(pages.ContextMenu!.Items.OfType<MenuItem>().Select(i => i.Header).SequenceEqual(new[] { "別ウィンドウで開く", "ページ作成", "ページ作成(mdファイルから)", "名前変更", "ノート移動", "削除", "md出力", "docx出力" }),
             "ページの右クリックメニューを指定順で表示する");
+        check(pages.ContextMenu!.Items.ElementAt(0) is MenuItem { Icon: Avalonia.Controls.Shapes.Path } &&
+            pages.ContextMenu.Items.ElementAt(1) is Separator,
+            "別窓メニューは重なったウィンドウのアイコンを持ち直後を区切る");
         foreach (var list in new[] { notes, pages })
         {
             var entries = list.ContextMenu!.Items.ToArray();
             var deleteIndex = Array.FindIndex(entries, entry => entry is MenuItem { Header: "削除" });
-            check(entries.OfType<Separator>().Count() == 2 &&
+            check(entries.OfType<Separator>().Count() == (list == notes ? 2 : 3) &&
                 entries[deleteIndex - 1] is Separator && entries[deleteIndex + 1] is Separator,
                 "削除の前後を区切り、基本操作・削除・出力をグループ化する");
             Context(list, false);
@@ -85,7 +88,7 @@ internal static class WorkspaceMenuChecks
             Context(pages, true);
             var enabled = !string.IsNullOrWhiteSpace(body);
             check(Items(pages).TakeLast(2).All(i => i.IsEnabled == enabled),
-                "未保存の最新本文に従ってMD・DOCX出力の有効状態を切り替える");
+                "未保存の最新本文に従ってMD・docx出力の有効状態を切り替える");
             check(Items(pages).Take(4).All(i => i.IsEnabled), "本文が空でも出力以外のページ操作は有効にする");
         }
         Context(notes, true);

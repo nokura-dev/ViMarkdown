@@ -11,6 +11,8 @@ namespace ViMarkdown;
 
 public sealed record MarkdownExportResult(string Directory, int Pages, int Images)
 {
+    public IReadOnlyDictionary<long, string> PageFiles { get; init; } = new Dictionary<long, string>();
+    public IReadOnlyDictionary<long, string> ErrorReports { get; init; } = new Dictionary<long, string>();
     public IReadOnlyList<string> D2Errors { get; init; } = [];
     public IReadOnlyList<string> MissingImages { get; init; } = [];
 }
@@ -20,30 +22,42 @@ public static class MarkdownExport
     private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.MarkdownExport;
 
     public static async Task<MarkdownExportResult> WriteAsync(string destination, IReadOnlyList<WorkspaceItem> pages,
-        Func<string, byte[]?> imageResolver)
+        Func<string, byte[]?> imageResolver, bool pageMediaDirectories = true, string? noteName = null, bool renderDiagrams = false)
     {
         var diagrams = new Dictionary<string, D2Result>();
-        foreach (var code in pages.SelectMany(d => Markdown.Parse(d.Body, Pipeline).Descendants<FencedCodeBlock>())
+        if (renderDiagrams) foreach (var code in pages.SelectMany(d => Markdown.Parse(d.Body, Pipeline).Descendants<FencedCodeBlock>())
                      .Where(D2Renderer.IsD2).Select(D2Renderer.Code).Distinct())
             diagrams[code] = await D2Renderer.Shared.RenderAsync(code);
-        return Write(destination, pages, imageResolver, code => diagrams[code]);
+        return Write(destination, pages, imageResolver, code => diagrams[code], pageMediaDirectories, noteName, renderDiagrams);
     }
 
-    // Each export owns a fresh directory, so failures never alter an earlier export.
+    // Existing files are preserved; failures roll back only this export.
     public static MarkdownExportResult Write(string destination, IReadOnlyList<WorkspaceItem> pages,
-        Func<string, byte[]?> imageResolver, Func<string, D2Result>? d2Resolver = null)
+        Func<string, byte[]?> imageResolver, Func<string, D2Result>? d2Resolver = null, bool pageMediaDirectories = true, string? noteName = null, bool renderDiagrams = false)
     {
         if (pages.Count == 0) throw new InvalidOperationException("出力するページがありません。");
         if (pages.Any(d => d.IsNote)) throw new ArgumentException("ページを指定してください。", nameof(pages));
+        Directory.CreateDirectory(destination);
+        var directory = destination;
+        using var output = new ExportOutput(directory);
+        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pageFiles = new Dictionary<long, string>();
+        var errorReports = new Dictionary<long, string>();
+        var reportBodies = new Dictionary<string, string>();
         var images = new Dictionary<string, byte[]>();
         var diagramErrors = new List<string>();
         var missing = new HashSet<string>(StringComparer.Ordinal);
         var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in pages)
         {
+            var pageMissing = new HashSet<string>(StringComparer.Ordinal);
+            var pageD2Errors = new List<string>();
             var sequence = 0;
             var diagramSequence = 0;
-            var stem = ExportFileNames.PageStem(item);
+            var stem = ExportFileNames.MediaStem(item, noteName);
+            var fileName = ExportFileNames.Allocate(directory, item, ".md", reserved, reserveMediaDirectory: pageMediaDirectories, reserveErrorReport: true, noteName: noteName);
+            // Office exporters collect media internally under assets; md uses a folder per page.
+            var mediaDirectory = pageMediaDirectories ? Path.GetFileNameWithoutExtension(fileName) : "assets";
             string Resolve(string url)
             {
                 if (!url.StartsWith("asset://", StringComparison.Ordinal)) return url;
@@ -53,47 +67,52 @@ public static class MarkdownExport
                 if (data is null)
                 {
                     missing.Add(url);
+                    pageMissing.Add(url);
                     data = MissingImage();
                     name = $"{stem}-missing-{sequence}.png";
                 }
-                images.Add(name, data);
+                images.Add(Path.Combine(mediaDirectory, name), data);
                 // Keep Japanese readable while escaping Markdown/URL delimiters.
-                return "assets/" + EscapeFileName(name);
+                return EscapeFileName(mediaDirectory) + "/" + EscapeFileName(name);
             }
             string? ResolveDiagram(string code)
             {
                 var rendered = d2Resolver?.Invoke(code) ?? D2Renderer.Shared.RenderAsync(code).GetAwaiter().GetResult();
                 if (rendered.Png is null)
                 {
-                    diagramErrors.Add($"{item.Name}({item.Id}): {rendered.Error}");
+                    var error = $"{item.Name}({item.Id}): {rendered.Error}";
+                    diagramErrors.Add(error);
+                    pageD2Errors.Add(error);
                     return null; // Keep invalid source editable in the exported Markdown.
                 }
                 var name = $"{stem}-d2-{++diagramSequence}.png";
-                images.Add(name, rendered.Png);
-                return "assets/" + EscapeFileName(name);
+                images.Add(Path.Combine(mediaDirectory, name), rendered.Png);
+                return EscapeFileName(mediaDirectory) + "/" + EscapeFileName(name);
             }
-            var body = Rewrite(item.Body, Resolve, ResolveDiagram);
-            // IDs distinguish duplicate names, including names that sanitize to the same filename.
-            files.Add(stem + ".md", body);
+            var body = Rewrite(item.Body, Resolve, renderDiagrams ? ResolveDiagram : null);
+            files.Add(fileName, body);
+            pageFiles.Add(item.Id, fileName);
+            if (pageMissing.Count > 0 || pageD2Errors.Count > 0)
+            {
+                var reportName = Path.GetFileNameWithoutExtension(fileName) + "_error.txt";
+                var report = "対象ファイル:\n" + fileName + "\n\n";
+                if (pageMissing.Count > 0)
+                    report += "次の画像はDBに存在しないため代替画像を出力しました。\n" + string.Join("\n", pageMissing) + "\n\n";
+                if (pageD2Errors.Count > 0)
+                    report += "描画できないD2は原文コードを保持しました。\n" + string.Join("\n", pageD2Errors) + "\n";
+                errorReports.Add(item.Id, reportName);
+                reportBodies.Add(reportName, report);
+            }
         }
-        Directory.CreateDirectory(destination);
-        var baseName = "MarkdownExport-" + DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-        var directory = Path.Combine(destination, baseName);
-        for (var suffix = 2; Directory.Exists(directory) || File.Exists(directory); suffix++)
-            directory = Path.Combine(destination, baseName + "-" + suffix);
-        try
+        foreach (var (name, data) in images) output.WriteImage(name, data);
+        foreach (var (name, body) in files) output.WriteText(name, body);
+        foreach (var (name, body) in reportBodies) output.WriteText(name, body);
+        output.Commit();
+        return new(directory, pages.Count, images.Count)
         {
-            Directory.CreateDirectory(directory);
-            if (images.Count > 0) Directory.CreateDirectory(Path.Combine(directory, "assets"));
-            foreach (var (name, data) in images) File.WriteAllBytes(Path.Combine(directory, "assets", name), data);
-            foreach (var (name, body) in files) File.WriteAllText(Path.Combine(directory, name), body, new UTF8Encoding(false));
-            if (missing.Count > 0)
-                File.WriteAllText(Path.Combine(directory, "missing-images.txt"), "次の画像はDBに存在しないため代替画像を出力しました。\n" + string.Join("\n", missing), new UTF8Encoding(false));
-            if (diagramErrors.Count > 0)
-                File.WriteAllText(Path.Combine(directory, "d2-errors.txt"), "描画できないD2は原文コードを保持しました。\n" + string.Join("\n", diagramErrors), new UTF8Encoding(false));
-            return new(directory, pages.Count, images.Count) { MissingImages = missing.ToArray(), D2Errors = diagramErrors };
-        }
-        catch { if (Directory.Exists(directory)) Directory.Delete(directory, true); throw; }
+            MissingImages = missing.ToArray(), D2Errors = diagramErrors, PageFiles = pageFiles,
+            ErrorReports = errorReports
+        };
     }
 
     private static string EscapeFileName(string name)
@@ -126,11 +145,11 @@ public static class MarkdownExport
         return stream.ToArray();
     }
 
-    private static string Rewrite(string source, Func<string, string> resolve, Func<string, string?> resolveDiagram)
+    private static string Rewrite(string source, Func<string, string> resolve, Func<string, string?>? resolveDiagram)
     {
         var parsed = Markdown.Parse(source, Pipeline);
         var edits = new List<(int Start, int Length, string Value)>();
-        foreach (var block in parsed.Descendants<FencedCodeBlock>().Where(D2Renderer.IsD2))
+        if (resolveDiagram is not null) foreach (var block in parsed.Descendants<FencedCodeBlock>().Where(D2Renderer.IsD2))
         {
             var url = resolveDiagram(D2Renderer.Code(block));
             if (url is not null)
@@ -146,7 +165,7 @@ public static class MarkdownExport
             var converted = resolve(url);
             if (link.Reference is not null)
             {
-                // Inline reference uses so exported image URLs point to assets.
+                // Inline reference uses so exported image URLs point to their media folder.
                 var first = link.FirstChild?.Span.Start ?? (link.Span.Start + (link.IsImage ? 2 : 1));
                 var last = link.LastChild?.Span.End ?? (first - 1);
                 var label = last >= first ? source[first..(last + 1)] : "";

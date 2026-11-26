@@ -75,6 +75,21 @@ public sealed partial class MainWindow
 
     private bool HandlePaneNavigation(KeyEventArgs e)
     {
+        if (IsDetachedEditor && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
+        {
+            if (e.Key == Key.Right && _searchResultsPane.IsVisible) _searchResults.Focus();
+            else FocusEditingSurface();
+            e.Handled = true;
+            return true;
+        }
+        if (IsPageDetached && _detachedPageNotice?.IsKeyboardFocusWithin == true &&
+            e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
+        {
+            if (e.Key == Key.Left) FocusPaneList(_pages);
+            else if (_searchResultsPane.IsVisible) FocusPaneList(_searchResults);
+            e.Handled = true;
+            return true;
+        }
         var pane = _paneBodies.FirstOrDefault(p => p.Value.IsKeyboardFocusWithin).Key;
         var within = _paneBodies.Values.Any(p => p.IsKeyboardFocusWithin);
         if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)

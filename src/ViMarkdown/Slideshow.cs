@@ -14,7 +14,7 @@ public sealed partial class MainWindow
 
     private void StartSlideshow()
     {
-        if (_isSlideshow || _activePageId is null || !_vimInputTail.IsCompleted || _workspaceShortcutRunning ||
+        if (_isSlideshow || IsPageDetached || _activePageId is null || !_vimInputTail.IsCompleted || _workspaceShortcutRunning ||
             OwnedWindows.Any(w => w.IsVisible)) return;
         _ime.Cancel();
         _commandPrompt = null;

@@ -2,7 +2,7 @@
 
 本文をViMarkdownのページへ貼り付け、Escでリッチ表示へ戻してください。
 各図がNeutral Greyで描画され、日本語が欠けずに読めることを確認します。
-Markdown／DOCX出力でも各フェンスがPNGになります。
+Markdown／docx出力でも各フェンスがPNGになります。
 
 ## 1. 日本語のフロー
 

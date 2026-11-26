@@ -26,7 +26,7 @@ public sealed partial class MainWindow
             e.Handled = true;
             CancelPendingCommand();
             var currentNote = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-            _searchScope.SelectedIndex = (int)(currentNote
+            _searchScope.SelectedIndex = IsDetachedEditor ? 0 : (int)(currentNote
                 ? WorkspaceSearchScope.SelectedNote : WorkspaceSearchScope.CurrentPage);
             _searchKeyword.Focus();
             _searchKeyword.CaretIndex = _searchKeyword.Text?.Length ?? 0;
@@ -44,6 +44,7 @@ public sealed partial class MainWindow
             (Key.Delete, KeyModifiers.None) when _pages.IsKeyboardFocusWithin => (false, "削除"),
             _ => null
         };
+        if (IsDetachedEditor) return;
         if (command is not { } key || !_workspaceActions.TryGetValue(key, out var action)) return;
         e.Handled = true;
         if (_workspaceShortcutRunning || OwnedWindows.Any(w => w.IsVisible)) return;

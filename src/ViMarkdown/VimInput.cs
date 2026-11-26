@@ -21,6 +21,12 @@ public sealed partial class MainWindow
 
     private void HandleVimPromptKey(object? sender, KeyEventArgs e)
     {
+        if (IsDetachedEditor && e.Key == Key.W && e.KeyModifiers == KeyModifiers.Control)
+        {
+            e.Handled = true;
+            if (!OwnedWindows.Any(w => w.IsVisible)) Close();
+            return;
+        }
         if (HandleSlideshowKey(e)) return;
         if (HandlePaneNavigation(e)) return;
         HandleWorkspaceShortcut(sender, e);

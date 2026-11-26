@@ -170,7 +170,7 @@ foreach (var item in items)
 
 言語名を `d2` にしたコードブロックは図として表示します。
 `i` で原文を編集して `Esc` で戻ると図が更新されます。
-テーマはNeutral Grey（ID 1）です。Markdown／DOCX出力では図をPNGとして出力します。
+テーマはNeutral Grey（ID 1）です。Markdown／docx出力では図をPNGとして出力します。
 
 ### フローと接続ラベル
 
