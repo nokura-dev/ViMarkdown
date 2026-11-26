@@ -7,6 +7,44 @@ namespace ViMarkdown;
 
 public sealed partial class MainWindow
 {
+    private const int PastedImageMaxSide = 2560;
+
+    private async Task CopyImageAsync(byte[] data)
+    {
+        try
+        {
+            if (Clipboard is not { } clipboard)
+            {
+                _saveStatus.Text = "クリップボードを利用できません";
+                return;
+            }
+            // Supply the stored PNG directly on macOS, without the native
+            // bitmap conversion path. This preserves the original pixel bounds.
+            IAsyncDataTransfer transfer;
+            if (OperatingSystem.IsMacOS())
+            {
+                var pngTransfer = new DataTransfer();
+                pngTransfer.Add(DataTransferItem.Create(
+                    DataFormat.CreateBytesPlatformFormat("public.png"), data));
+                transfer = pngTransfer;
+            }
+            else transfer = new ClipboardImageData(data);
+            try
+            {
+                await clipboard.SetDataAsync(transfer);
+                // Ownership passes to the clipboard; it disposes the transfer
+                // when the data is no longer needed, including any bitmap.
+            }
+            catch
+            {
+                transfer.Dispose();
+                throw;
+            }
+            _saveStatus.Text = "画像をクリップボードへコピーしました";
+        }
+        catch (Exception ex) { _saveStatus.Text = "画像のコピーに失敗しました: " + ex.Message; }
+    }
+
     private void ConfigureMediaPaste()
     {
         AddHandler(KeyDownEvent, async (_, e) =>
@@ -54,12 +92,29 @@ public sealed partial class MainWindow
     private void InsertImage(Bitmap bitmap, Avalonia.Vector? density = null)
     {
         if (_activePageId is null) return;
+        var size = bitmap.PixelSize;
+        var longestSide = Math.Max(size.Width, size.Height);
+        if (longestSide > PastedImageMaxSide)
+        {
+            var scale = (double)PastedImageMaxSide / longestSide;
+            var target = new Avalonia.PixelSize(
+                Math.Max(1, (int)Math.Round(size.Width * scale)),
+                Math.Max(1, (int)Math.Round(size.Height * scale)));
+            using var resized = bitmap.CreateScaledBitmap(target, BitmapInterpolationMode.HighQuality);
+            InsertPng(ImageContent.EncodePng(resized, density ?? bitmap.Dpi));
+            return;
+        }
         InsertPng(ImageContent.EncodePng(bitmap, density));
     }
 
     private void InsertEncodedImage(byte[] data, Avalonia.Vector? density = null)
     {
         using var bitmap = new Bitmap(new MemoryStream(data));
+        if (Math.Max(bitmap.PixelSize.Width, bitmap.PixelSize.Height) > PastedImageMaxSide)
+        {
+            InsertImage(bitmap, density);
+            return;
+        }
         InsertPng(density is null && data.AsSpan().StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
             ? data : ImageContent.EncodePng(bitmap, density));
     }

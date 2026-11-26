@@ -17,7 +17,7 @@ public sealed record MarkdownExportResult(string Directory, int Pages, int Image
 
 public static class MarkdownExport
 {
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().EnableTrackTrivia().UseAdjacentReferenceLinks().Build();
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.MarkdownExport;
 
     public static async Task<MarkdownExportResult> WriteAsync(string destination, IReadOnlyList<WorkspaceItem> pages,
         Func<string, byte[]?> imageResolver)

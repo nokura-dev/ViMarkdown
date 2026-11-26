@@ -39,7 +39,7 @@ public sealed partial class MainWindow
         {
             var page = list.SelectedItem as WorkspaceItem;
             restore.IsEnabled = page is not null;
-            date.Text = page?.DeletedAt is { } deleted ? "削除日: " + deleted.ToLocalTime().ToString("yyyy/MM/dd HH:mm") : "ごみ箱は空です";
+            date.Text = page?.DeletedAt is { } deleted ? "削除日: " + deleted.ToLocalTime().ToString(PageNaming.TimestampFormat) : "ごみ箱は空です";
             body.Text = page?.Body ?? "";
         };
         restore.Click += (_, _) =>

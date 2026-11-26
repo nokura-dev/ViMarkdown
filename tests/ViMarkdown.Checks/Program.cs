@@ -5,7 +5,7 @@ using ViMarkdown;
 try { RunChecks(args); }
 catch (Exception ex)
 {
-    Console.Error.WriteLine("FAIL " + ex.Message);
+    Console.Error.WriteLine("FAIL " + ex);
     Environment.ExitCode = 1;
 }
 

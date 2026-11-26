@@ -12,7 +12,7 @@ public sealed partial class MainWindow
     private const double MinimumNotesWidth = 112, MinimumPagesWidth = 290, MinimumEditorWidth = 510;
     private const double MinimumWorkspaceWidth = 64 + 8 + MinimumNotesWidth + MinimumPagesWidth + MinimumEditorWidth;
     // Timeline header, seven period buttons, and the trash button.
-    private const double MinimumWorkspaceHeight = 38 + 8 * 54;
+    private const double MinimumWorkspaceHeight = 38 + 9 * 54;
     private const double MinimumSearchResultsWidth = 250;
 
     private Grid BuildWorkspaceLayout(Control editor)

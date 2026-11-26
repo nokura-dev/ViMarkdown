@@ -9,31 +9,9 @@ using Avalonia.Media;
 
 namespace ViMarkdown;
 
-public record DisplayUnit(string Text, int Start, int End, double Size = Typography.Body,
-    bool Bold = false, bool Italic = false, bool Code = false,
-    bool Strike = false, string? LinkUrl = null, int? TaskOffset = null, bool Rule = false,
-    IReadOnlyList<TextAlignment>? Alignments = null, double HeadingRuleThickness = 0, double BottomSpacing = 0,
-    string? ImageUrl = null, string? D2Code = null, IReadOnlyList<IReadOnlyList<IReadOnlyList<DisplayUnit>>>? Table = null);
-
-// Source offsets are UTF-16, matching AvaloniaEdit. Grapheme boundaries prevent
-// navigation from splitting surrogate pairs, combining marks or emoji sequences.
-public static class TextBoundaries
-{
-    public static int Next(string text, int offset)
-        => StringInfo.ParseCombiningCharacters(text).FirstOrDefault(x => x > offset, text.Length);
-    public static int Previous(string text, int offset)
-        => StringInfo.ParseCombiningCharacters(text).LastOrDefault(x => x < offset, 0);
-}
-
 public static class Projection
 {
-    private static readonly MarkdownPipeline Pipeline = CreatePipeline();
-    private static MarkdownPipeline CreatePipeline()
-    {
-        var builder = new MarkdownPipelineBuilder()
-        .UsePipeTables().UseTaskLists().UseEmphasisExtras(Markdig.Extensions.EmphasisExtras.EmphasisExtraOptions.Strikethrough).UseDefinitionLists().UsePreciseSourceLocation();
-        return builder.UseAdjacentReferenceLinks().Build();
-    }
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.Projection;
 
     public static IReadOnlyList<DisplayUnit> Build(string source)
     {
@@ -268,7 +246,7 @@ public static class Projection
                     Add(source[block.Span.Start..(block.Span.End + 1)], block.Span.Start);
                 // Attach the divider to the final heading glyph so wrapping places
                 // it below the last visual line without adding source characters.
-                if (block is HeadingBlock { IsSetext: false, Level: 1 or 2 or 3 } heading && output.Count > contentStart)
+                if (block is HeadingBlock { IsSetext: false, Level: 1 or 2 } heading && output.Count > contentStart)
                     output[^1] = output[^1] with { HeadingRuleThickness = heading.Level == 1 ? 2 : 1 };
                 if (block is LeafBlock && prefix.Length > 0)
                 {

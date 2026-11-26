@@ -118,7 +118,7 @@ internal static class WorkspacePaneChecks
         SearchFits();
         window.Height = window.MinHeight;
         Layout();
-        var lastPeriod = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "Timeline6");
+        var lastPeriod = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "Timeline7");
         var trash = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "TrashButton");
         var periodTop = lastPeriod.TranslatePoint(default, window)!.Value.Y;
         var trashTop = trash.TranslatePoint(default, window)!.Value.Y;

@@ -25,6 +25,7 @@ public sealed partial class MainWindow
         ConfigureWindowPlacement();
         if (Enum.TryParse<PageSortOrder>(_store.GetSetting("page-sort"), out var order) && Enum.IsDefined(order)) _pageSortOrder = order;
         _rich.ImageResolver = _store.GetImage;
+        _rich.ImageCopyRequested += async data => await CopyImageAsync(data);
         _saveTimer.Tick += (_, _) => SaveCurrent();
         Closing += (_, e) => { if (!SaveCurrent()) e.Cancel = true; };
         Closed += (_, _) => { _saveTimer.Stop(); SaveWindowPlacement(); _store.Dispose(); };
@@ -110,6 +111,9 @@ public sealed partial class MainWindow
         try
         {
             var item = _store.Items().FirstOrDefault(i => i.Id == id && !i.IsNote);
+            _rich.ClearPage();
+            foreach (var markdown in _editor.TextArea.TextView.LineTransformers.OfType<LightPlusMarkdown>())
+                markdown.ClearCache();
             _activePageId = item?.Id; _pageRangeEndId = _activePageId; _pageContent.Text = item?.Body ?? ""; _pageContent.UndoStack.ClearAll();
             _caret = 0; _anchor = null; _editor.CaretOffset = 0; _modeSwitchGeneration++;
             _preview.Offset = default; _editor.ScrollToHome();
@@ -135,14 +139,7 @@ public sealed partial class MainWindow
         if (_automaticPageNameId != id) return false;
         var page = _store.Items().FirstOrDefault(p => p.Id == id);
         if (page is null) return false;
-        var lines = _pageContent.Text.Split('\n');
-        var first = lines[0].Trim().TrimStart('#').Trim();
-        var dated = DateTime.TryParseExact(first, "yyyy/MM/dd HH:mm",
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out _);
-        var candidate = dated ? lines.ElementAtOrDefault(1) ?? "" : lines[0];
-        var name = candidate.Trim().TrimStart('#').Trim();
-        if (dated && string.IsNullOrWhiteSpace(name)) name = first;
+        var name = PageNaming.AutomaticName(_pageContent.Text);
         if (string.IsNullOrWhiteSpace(name) || name == page.Name) return false;
         _store.Rename(id, name);
         Title = FormatPageWindowTitle(name);
@@ -150,7 +147,7 @@ public sealed partial class MainWindow
     }
 
     private static string FormatPageWindowTitle(string name) =>
-        "ViMarkdown — " + name;
+        PageNaming.WindowTitle(name);
 
     private bool SaveCurrent()
     {
@@ -168,7 +165,7 @@ public sealed partial class MainWindow
                 if (page is not null)
                     foreach (var date in _pages.GetVisualDescendants().OfType<TextBlock>()
                         .Where(t => t.Name == "PageUpdatedAt" && t.Tag is long id && id == page.Id))
-                        date.Text = page.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm");
+                        date.Text = page.UpdatedAt.ToLocalTime().ToString(PageNaming.TimestampFormat);
             }
             return true;
         }

@@ -119,7 +119,7 @@ public sealed partial class MainWindow
                 {
                     Name = "PageUpdatedAt",
                     Tag = page.Id,
-                    Text = page.UpdatedAt == DateTimeOffset.MinValue ? "更新日時不明" : page.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm"),
+                    Text = TimelinePeriods.FormatUpdatedAt(page.UpdatedAt, DateTime.Today),
                     FontSize = 10,
                     LineHeight = dateLineHeight,
                     Margin = new Thickness(0, -gapReduction, 0, 0),

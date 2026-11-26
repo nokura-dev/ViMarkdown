@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ViMarkdown;
 
@@ -15,6 +16,9 @@ internal static class EditorViewChecks
         using var session = new EditorSession();
         var window = session.Window;
         var editor = session.Editor;
+        // Keep this scenario independent of the bundled README's current title.
+        editor.Text = "# Markdown 表示切り替え\n\n本文 **太字** と `code`\n\n---\n\n末尾";
+        Dispatcher.UIThread.RunJobs();
         var original = editor.Document.Text;
         check(window.GetVisualDescendants().OfType<TextBlock>().Where(t => !string.IsNullOrEmpty(t.Text))
                 .All(t => t.FontFamily.Equals(Typography.BodyFont)),

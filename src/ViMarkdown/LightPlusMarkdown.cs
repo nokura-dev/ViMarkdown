@@ -19,15 +19,13 @@ public sealed class LightPlusMarkdown : DocumentColorizingTransformer, IBackgrou
     private readonly Dictionary<int, List<Span>> _lines = [];
     private TextDocument? _document;
     private ITextSourceVersion? _version;
-    private static readonly MarkdownPipeline Pipeline = CreatePipeline();
-    private static MarkdownPipeline CreatePipeline()
+    public void ClearCache()
     {
-        var builder = new MarkdownPipelineBuilder()
-        .UsePipeTables().UseTaskLists().UseDefinitionLists()
-        .UseEmphasisExtras(Markdig.Extensions.EmphasisExtras.EmphasisExtraOptions.Strikethrough)
-        .UsePreciseSourceLocation().EnableTrackTrivia();
-        return builder.UseAdjacentReferenceLinks().Build();
+        _lines.Clear();
+        _document = null;
+        _version = null;
     }
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.Highlighting;
     private static readonly IBrush Heading = Brush("#005CC5");
     private static readonly IBrush Emphasis = Brush("#7A3E9D");
     private static readonly IBrush Link = Brush("#007ACC");

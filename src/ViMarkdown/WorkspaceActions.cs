@@ -37,7 +37,7 @@ public sealed partial class MainWindow
             else
             {
                 if (!SaveCurrent()) return;
-                var name = DateTime.Now.ToString("yyyy/MM/dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+                var name = DateTime.Now.ToString(PageNaming.TimestampFormat, System.Globalization.CultureInfo.InvariantCulture);
                 var body = name + "\n";
                 var id = _store.Create(name, false, _noteId, body);
                 _timelinePeriod = 0;

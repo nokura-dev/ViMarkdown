@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using ViMarkdown;
 
 internal static class MediaChecks
@@ -58,6 +60,7 @@ internal static class MediaChecks
         byte[] png;
         using (var bitmap = new RenderTargetBitmap(new PixelSize(32, 24)))
         using (var stream = new MemoryStream()) { bitmap.Save(stream); png = stream.ToArray(); }
+        CheckClipboardImage(check, png);
         try
         {
             using (var store = new WorkspaceStore(path))
@@ -87,5 +90,57 @@ internal static class MediaChecks
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             foreach (var suffix in new[] { "", "-wal", "-shm" }) File.Delete(path + suffix);
         }
+    }
+
+    private static void CheckClipboardImage(Action<bool, string> check, byte[] png)
+    {
+        using var transfer = new ClipboardImageData(png);
+        IDataTransfer sync = transfer;
+        IAsyncDataTransfer asyncData = transfer;
+        check(sync.Formats.Contains(DataFormat.Bitmap), "画像コピーは標準ビットマップ形式を提供");
+        // Simulate a consumer requesting image data after the copy method has
+        // returned, then requesting it again for another paste/format conversion.
+        for (var i = 0; i < 3; i++)
+        {
+            var bitmap = (Bitmap)asyncData.Items[0].TryGetRawAsync(DataFormat.Bitmap).GetAwaiter().GetResult()!;
+            using var saved = new MemoryStream();
+            bitmap.Save(saved);
+            saved.Position = 0;
+            using var decoded = new Bitmap(saved);
+            check(decoded.PixelSize == new PixelSize(32, 24), $"遅延した画像要求を繰り返しても再符号化できる {i}");
+            check(ReferenceEquals(bitmap, sync.Items[0].TryGetRaw(DataFormat.Bitmap)), "同期・非同期の要求で有効な画像を共有");
+        }
+        transfer.Dispose();
+        check(sync.Items[0].TryGetRaw(DataFormat.Bitmap) is null, "クリップボード解放後は破棄済み画像を返さない");
+        transfer.Dispose();
+        check(asyncData.Items[0].TryGetRawAsync(DataFormat.Bitmap).GetAwaiter().GetResult() is null,
+            "二重解放しても破棄済み画像を返さない");
+
+        using var session = new EditorSession();
+        var copy = typeof(MainWindow).GetMethod("CopyImageAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        ((Task)copy.Invoke(session.Window, [png])!).GetAwaiter().GetResult();
+        var clipboard = session.Window.Clipboard!;
+        for (var i = 0; i < 2; i++)
+        {
+            if (OperatingSystem.IsMacOS())
+            {
+                var copiedPng = clipboard.TryGetValueAsync(
+                    DataFormat.CreateBytesPlatformFormat("public.png")).GetAwaiter().GetResult();
+                check(copiedPng is not null && copiedPng.SequenceEqual(png),
+                    "コピー処理完了後も保存PNGを余白追加・再符号化なしで取得");
+                using var originalPixels = new Bitmap(new MemoryStream(copiedPng!));
+                check(originalPixels.PixelSize == new PixelSize(32, 24), "PNGコピーは元画像の画素範囲を保持");
+                continue;
+            }
+            var copied = clipboard.TryGetBitmapAsync().GetAwaiter().GetResult();
+            check(copied is not null, "実際のコピー処理完了後にクリップボードから画像を取得");
+            using var encoded = new MemoryStream();
+            copied!.Save(encoded);
+            encoded.Position = 0;
+            using var decoded = new Bitmap(encoded);
+            check(decoded.PixelSize == new PixelSize(32, 24), "コピー処理完了後のペーストで画像を再符号化できる");
+        }
+        clipboard.ClearAsync().GetAwaiter().GetResult();
     }
 }

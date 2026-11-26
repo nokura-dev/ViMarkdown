@@ -19,7 +19,7 @@ public static class DocxExport
     private const int VerticalMargin = 850, HorizontalMargin = 850; // 15mm, in twips.
     private const string BodySize = "20"; // Open XML font sizes are in half-points.
     private static readonly string[] HeadingSizes = ["36", "32", "28", "24", "22", "20"];
-    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().UseAdjacentReferenceLinks().Build();
+    private static readonly MarkdownPipeline Pipeline = MarkdownPipelines.DocxExport;
 
     private static W.RunFonts Fonts() => new()
     {

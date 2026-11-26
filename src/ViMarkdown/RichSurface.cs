@@ -52,8 +52,13 @@ public sealed class RichSurface : Control
     private string? _source;
     private DisplayNavigation _navigation = new("", []);
     private double _layoutWidth;
+    private Rect? _viewport;
     private readonly Dictionary<string, D2Result> _diagrams = [];
     private int _generation;
+    private readonly Dictionary<int, double> _imageWidths = [];
+    private (int Offset, Rect Bounds, Point PointerStart)? _imageResize;
+    private IPointer? _resizePointer;
+    private static readonly Cursor ImageResizeCursor = new(StandardCursorType.BottomRightCorner);
     public Func<string, byte[]?>? ImageResolver { get; set; }
     public int Caret { get; set; }
     public int? Anchor { get; set; }
@@ -61,12 +66,61 @@ public sealed class RichSurface : Control
     public IReadOnlyList<(int Start, int End)>? SelectionRanges { get; set; }
     public event Action<int>? PositionPicked;
     public event Action<int>? TaskToggled;
-    public RichSurface() { Focusable = true; ClipToBounds = true; }
+    public event Action<byte[]>? ImageCopyRequested;
+    public RichSurface()
+    {
+        Focusable = true;
+        ClipToBounds = true;
+        var copyImage = new MenuItem { Header = "クリップボードへコピー" };
+        var imageMenu = new ContextMenu { ItemsSource = new[] { copyImage } };
+        byte[]? contextImage = null;
+        copyImage.Click += (_, _) =>
+        {
+            if (contextImage is { } data) ImageCopyRequested?.Invoke(data);
+        };
+        imageMenu.Closed += (_, _) => contextImage = null;
+        ContextRequested += (_, e) =>
+        {
+            if (!e.TryGetPosition(this, out var position)) return;
+            var point = new Point(position.X - ContentOrigin.X, position.Y - ContentOrigin.Y);
+            var image = EnsureLayout(Bounds.Width).ImageAt(point);
+            contextImage = image?.D2Code is { } code ? _diagrams.GetValueOrDefault(code)?.Png
+                : image?.ImageUrl is { } url ? ImageResolver?.Invoke(url) : null;
+            if (contextImage is null) return;
+            imageMenu.Open(this);
+            e.Handled = true;
+        };
+        EffectiveViewportChanged += (_, e) =>
+        {
+            if (_viewport == e.EffectiveViewport) return;
+            _viewport = e.EffectiveViewport;
+            InvalidateVisual();
+        };
+    }
+
+    // Release the previous page even when the preview is hidden in Insert mode.
+    public void ClearPage()
+    {
+        ResetImageSizes();
+        ResetLayout();
+        _source = null;
+        _units = [];
+        _navigation = new DisplayNavigation("", []);
+        _diagrams.Clear();
+        _generation++;
+        SearchRanges = [];
+        SelectionRanges = null;
+        Anchor = null;
+        Caret = 0;
+        InvalidateMeasure();
+        InvalidateVisual();
+    }
 
     public void SetSource(string source)
     {
         if (_source != source)
         {
+            ResetImageSizes();
             _source = source;
             _units = Projection.Build(source);
             _navigation = new DisplayNavigation(source, _units);
@@ -109,7 +163,7 @@ public sealed class RichSurface : Control
             _layout = new RichTextLayout(_units, textWidth, ImageResolver,
                 // Larger runs retain automatic height so headings and checkboxes fit.
                 lineHeight: _units.All(unit => unit.Size <= Typography.Body) ? BodyLineHeight : double.NaN,
-                d2Resolver: code => _diagrams.GetValueOrDefault(code));
+                d2Resolver: code => _diagrams.GetValueOrDefault(code), imageWidths: _imageWidths);
         }
         return _layout;
     }
@@ -125,17 +179,22 @@ public sealed class RichSurface : Control
     {
         base.Render(context);
         var layout = EnsureLayout(Bounds.Width);
+        var viewport = (_viewport ?? new Rect(Bounds.Size))
+            .Translate(new Vector(-ContentOrigin.X, -ContentOrigin.Y));
         context.FillRectangle(BackgroundBrush, new Rect(Bounds.Size));
         using (context.PushTransform(Matrix.CreateTranslation(ContentOrigin.X, ContentOrigin.Y)))
         {
-            layout.DrawBackground(context);
+            layout.DrawBackground(context, viewport);
             foreach (var range in SearchRanges)
                 foreach (var rect in layout.SelectionBounds(range.Start, range.End))
                     context.FillRectangle(WorkspaceColors.SearchMatch, rect);
             foreach (var range in SelectionRanges ?? (Anchor.HasValue ? new[] { (Anchor.Value, Caret) } : Array.Empty<(int, int)>()))
                 foreach (var rect in layout.SelectionBounds(range.Item1, range.Item2))
                     context.FillRectangle(SelectionBrush, rect);
-            layout.Draw(context);
+            layout.Draw(context, viewport);
+            foreach (var image in layout.ResizableImages())
+                if (image.Bounds.Intersects(viewport))
+                    context.DrawRectangle(WorkspaceColors.Editor, new Pen(WorkspaceColors.Accent), ImageResizeHandle(image.Bounds));
             context.FillRectangle(WorkspaceColors.Accent, layout.CaretBounds(Caret));
         }
     }
@@ -224,10 +283,24 @@ public sealed class RichSurface : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed) return;
         Focus();
         var p = e.GetPosition(this);
         var point = new Point(p.X - ContentOrigin.X, p.Y - ContentOrigin.Y);
         var layout = EnsureLayout(Bounds.Width);
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            foreach (var image in layout.ResizableImages())
+            {
+                if (!ImageResizeHandle(image.Bounds).Contains(point)) continue;
+                _imageResize = (image.Offset, image.Bounds, p);
+                _resizePointer = e.Pointer;
+                e.Pointer.Capture(this);
+                Cursor = ImageResizeCursor;
+                e.Handled = true;
+                return;
+            }
+        }
         var interactive = layout.InteractiveAt(point);
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && interactive?.TaskOffset is int offset)
             TaskToggled?.Invoke(offset);
@@ -238,9 +311,68 @@ public sealed class RichSurface : Control
         e.Handled = true;
     }
 
+    private static Rect ImageResizeHandle(Rect bounds)
+        => new(bounds.Right - Math.Min(10, bounds.Width), bounds.Bottom - Math.Min(10, bounds.Height),
+            Math.Min(10, bounds.Width), Math.Min(10, bounds.Height));
+
+    public void ResetImageSizes()
+    {
+        EndImageResize();
+        _imageWidths.Clear();
+        ResetLayout();
+        InvalidateMeasure();
+        InvalidateVisual();
+    }
+
+    private void EndImageResize()
+    {
+        _imageResize = null;
+        var pointer = _resizePointer;
+        _resizePointer = null;
+        pointer?.Capture(null);
+        Cursor = null;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        if (_imageResize is { } drag)
+        {
+            var delta = e.GetPosition(this) - drag.PointerStart;
+            var ratio = drag.Bounds.Height / drag.Bounds.Width;
+            // Project both pointer axes onto the image diagonal to keep its aspect ratio.
+            var width = drag.Bounds.Width + (delta.X + ratio * delta.Y) / (1 + ratio * ratio);
+            var maximum = Math.Max(1, Bounds.Width - ContentPadding.Left - ContentPadding.Right - drag.Bounds.Left);
+            _imageWidths[drag.Offset] = Math.Clamp(width, Math.Min(32, maximum), maximum);
+            ResetLayout();
+            InvalidateMeasure();
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+        var p = e.GetPosition(this);
+        var point = new Point(p.X - ContentOrigin.X, p.Y - ContentOrigin.Y);
+        Cursor = EnsureLayout(Bounds.Width).ResizableImages().Any(image => ImageResizeHandle(image.Bounds).Contains(point))
+            ? ImageResizeCursor : null;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (_imageResize is null) return;
+        EndImageResize();
+        e.Handled = true;
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+        EndImageResize();
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        ResetLayout();
+        ResetImageSizes();
         base.OnDetachedFromVisualTree(e);
     }
 }

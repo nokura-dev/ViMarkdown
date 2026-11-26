@@ -84,6 +84,10 @@ internal static class FocusChecks
             {
                 window.GetVisualDescendants().OfType<ComboBox>().Single(c => c.Name == "PageSort").SelectedIndex = i;
                 Dispatcher.UIThread.RunJobs();
+                // Returning from another note leaves the page unselected.
+                // Select a page explicitly before testing editor focus.
+                if (pages.SelectedIndex < 0) pages.SelectedIndex = 0;
+                Dispatcher.UIThread.RunJobs();
                 session.Click("INSERT (i)", focus: true);
                 session.Click("INSERT (i)", focus: true);
                 check(editor.TextArea.IsKeyboardFocusWithin, "挿入モードを再クリックしてもTextAreaにフォーカスが戻る");

@@ -56,12 +56,32 @@ internal static class PaneNavigationChecks
         Move(true); Move(false);
         check(Named<Button>("Timeline1").IsKeyboardFocusWithin, "期間のフォーカス位置を復元する");
         session.Key(PhysicalKey.ArrowDown);
+        check(pages.ItemCount == 0 && notes.ItemCount == 0 && Named<Button>("Timeline2").IsKeyboardFocusWithin,
+            "昨日に更新したページがなければ期間ボタンにフォーカスを保つ");
+        Ring(0);
         session.Key(PhysicalKey.ArrowDown);
-        check(pages.ItemCount == 0 && notes.ItemCount == 0 && Named<Button>("Timeline3").IsKeyboardFocusWithin,
-            "上下キーで先週を選ぶと期間外のページ・ノートを絞り込む");
+        Ring(0);
+        session.Key(PhysicalKey.ArrowDown);
+        check(pages.ItemCount == 0 && notes.ItemCount == 0 && Named<Button>("Timeline4").IsKeyboardFocusWithin,
+            "上下キーで先週を選び該当するノート・ページがなくても期間にフォーカスを保つ");
+        Ring(0);
+        foreach (var period in new[] { 6, 7, 4 })
+        {
+            var button = Named<Button>("Timeline" + period);
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            check(pages.ItemCount == 0 && notes.ItemCount == 0 && button.IsKeyboardFocusWithin,
+                "該当するノート・ページがない期間のクリックでも選択した期間にフォーカスを置く");
+            Ring(0);
+        }
         session.Key(PhysicalKey.ArrowUp);
         check(pages.ItemCount > 0 && notes.ItemCount > 0, "今週へ戻ると絞り込み結果も更新する");
         session.Key(PhysicalKey.ArrowUp);
+        check(Named<Button>("Timeline2").IsKeyboardFocusWithin && pages.ItemCount == 0,
+            "上キーで該当ページがない昨日へ戻った場合も期間にフォーカスを保つ");
+        Ring(0);
+        session.Key(PhysicalKey.ArrowUp);
+        Ring(0);
         session.Key(PhysicalKey.ArrowUp);
         check(Named<Button>("Timeline0").Background is ISolidColorBrush all && all.Color == Color.Parse("#CDE8FF"),
             "上キーでも期間を選択する");
@@ -94,7 +114,8 @@ internal static class PaneNavigationChecks
         session.Key(PhysicalKey.ArrowDown);
         check(results.SelectedIndex == nextResult && results.IsKeyboardFocusWithin, "検索結果を上下で選択しても本文へ飛ばない");
         session.Key(PhysicalKey.Enter);
-        check(session.Rich.IsKeyboardFocusWithin, "検索結果をEnterで開く");
+        check(results.IsKeyboardFocusWithin, "検索結果をEnterで開いても結果一覧にフォーカスを保つ");
+        session.Rich.Focus();
         Move(true);
         check(results.SelectedIndex == nextResult && results.IsKeyboardFocusWithin, "検索結果の選択へ復帰する");
         Named<TextBox>("SearchKeyword").Text = "no-match-unique";
@@ -151,7 +172,8 @@ internal static class PaneNavigationChecks
             check(notes.SelectedItem?.ToString() == "Bノート" && pages.ItemCount == 1 && notes.IsKeyboardFocusWithin,
                 "ノートの上下選択でページ一覧を切り替える");
             session.Window.KeyTextInput("x");
-            check(session.Editor.Text == "最初の本文", "一覧への文字入力で本文を編集しない");
+            check(session.Editor.Text.Length == 0 && !session.Editor.IsEnabled,
+                "ノート切替後のページ未選択状態では一覧への文字入力で本文を編集しない");
             session.Key(PhysicalKey.ArrowUp);
             check(notes.SelectedItem?.ToString() == "Aノート" && pages.ItemCount == 2 && notes.IsKeyboardFocusWithin,
                 "上キーで前ノートへ戻る");
