@@ -21,7 +21,7 @@ public sealed partial class MainWindow
 
     private void HandleVimPromptKey(object? sender, KeyEventArgs e)
     {
-        if (IsDetachedEditor && e.Key == Key.W && e.KeyModifiers == KeyModifiers.Control)
+        if (IsDetachedEditor && e.Key == Key.W && WorkspaceModifiers(e.KeyModifiers) == KeyModifiers.Control)
         {
             e.Handled = true;
             if (!OwnedWindows.Any(w => w.IsVisible)) Close();

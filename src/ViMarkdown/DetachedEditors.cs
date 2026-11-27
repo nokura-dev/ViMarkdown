@@ -90,7 +90,7 @@ public sealed partial class MainWindow
 
     private void OpenDetachedEditor(long id)
     {
-        if (IsDetachedEditor || _closingWorkspace) return;
+        if (IsDetachedEditor || _closingWorkspace || _switchingWorkspace) return;
         if (_detachedEditors.TryGetValue(id, out var existing)) { BringEditorToFront(existing); return; }
         if (!_vimInputTail.IsCompleted || _workspaceShortcutRunning || OwnedWindows.Any(w => w.IsVisible)) return;
         FinishBlockInsert();

@@ -75,12 +75,13 @@ public static class XlsxExport
             new S.Fonts(new S.Font(new S.FontSize { Val = 10 }, new S.FontName { Val = "Meiryo UI" })) { Count = 1 },
             new S.Fills(new S.Fill(new S.PatternFill { PatternType = S.PatternValues.None }),
                 new S.Fill(new S.PatternFill { PatternType = S.PatternValues.Gray125 })) { Count = 2 },
-            new S.Borders(new S.Border()) { Count = 1 },
+            new S.Borders(new S.Border(), TableBorder(false), TableBorder(true)) { Count = 3 },
             new S.CellStyleFormats(new S.CellFormat()) { Count = 1 },
             new S.CellFormats(new S.CellFormat { FontId = 0, FillId = 0, BorderId = 0, FormatId = 0,
                 ApplyAlignment = true, Alignment = new S.Alignment { WrapText = true, Vertical = S.VerticalAlignmentValues.Top } },
                 new S.CellFormat { FontId = 0, FillId = 0, BorderId = 0, FormatId = 0,
-                    ApplyAlignment = true, Alignment = new S.Alignment { WrapText = false, Vertical = S.VerticalAlignmentValues.Top } }) { Count = 2 });
+                    ApplyAlignment = true, Alignment = new S.Alignment { WrapText = false, Vertical = S.VerticalAlignmentValues.Top } },
+                TableFormat(false, false), TableFormat(true, true), TableFormat(true, false)) { Count = 5 });
         var part = book.AddNewPart<WorksheetPart>();
         var data = new S.SheetData();
         part.Worksheet = new S.Worksheet(
@@ -116,7 +117,7 @@ public static class XlsxExport
             data.Append(row);
             return row;
         }
-        void WriteRows(IReadOnlyList<List<Piece>> cells, bool table = false, double size = 10)
+        void WriteRows(IReadOnlyList<List<Piece>> cells, bool table = false, double size = 10, bool header = false)
         {
             // Body text may overflow into adjacent empty cells. Only table cells wrap.
             var width = table ? Math.Max(1, columnPixels - 5) : double.PositiveInfinity;
@@ -128,9 +129,9 @@ public static class XlsxExport
                 var row = NewRow();
                 for (var column = 0; column < chunks.Length; column++)
                 {
-                    if (i >= chunks[column].Count) continue;
+                    if (i >= chunks[column].Count && !table) continue;
                     var content = new S.InlineString();
-                    foreach (var piece in chunks[column][i])
+                    foreach (var piece in i < chunks[column].Count ? chunks[column][i] : new List<Piece>())
                     {
                         var properties = new S.RunProperties(new S.RunFont { Val = "Meiryo UI" });
                         if (piece.Bold) properties.Append(new S.Bold());
@@ -139,7 +140,7 @@ public static class XlsxExport
                         content.Append(new S.Run(properties, new S.Text(piece.Text) { Space = SpaceProcessingModeValues.Preserve }));
                     }
                     row.Append(new S.Cell { CellReference = Reference(column, rowIndex), DataType = S.CellValues.InlineString,
-                        StyleIndex = table ? 0u : 1u, InlineString = content });
+                        StyleIndex = table ? (header ? (i == count - 1 ? 3u : 4u) : 2u) : 1u, InlineString = content });
                 }
             }
         }
@@ -192,7 +193,7 @@ public static class XlsxExport
                     foreach (var row in table.OfType<TableRow>())
                     {
                         var cells = row.OfType<TableCell>().Select(cell => CellText(cell, row.IsHeader)).ToList();
-                        if (cells.Count > 0) WriteRows(cells, true);
+                        if (cells.Count > 0) WriteRows(cells, true, header: row.IsHeader);
                         foreach (var cell in row.OfType<TableCell>())
                             foreach (var image in Descendants(cell).OfType<LeafBlock>().SelectMany(l => Images(l.Inline))) Image(image);
                     }
@@ -246,6 +247,25 @@ public static class XlsxExport
         var errors = new OpenXmlValidator().Validate(package).Take(5).ToArray();
         if (errors.Length > 0) throw new InvalidDataException(string.Join("; ", errors.Select(e => e.Description)));
     }
+
+    private static S.Border TableBorder(bool headerBottom) => new(
+        new S.LeftBorder { Style = S.BorderStyleValues.Thin },
+        new S.RightBorder { Style = S.BorderStyleValues.Thin },
+        new S.TopBorder { Style = S.BorderStyleValues.Thin },
+        new S.BottomBorder { Style = headerBottom ? S.BorderStyleValues.Medium : S.BorderStyleValues.Thin },
+        new S.DiagonalBorder());
+
+    private static S.CellFormat TableFormat(bool header, bool headerBottom) => new()
+    {
+        FontId = 0, FillId = 0, BorderId = headerBottom ? 2u : 1u, FormatId = 0,
+        ApplyBorder = true, ApplyAlignment = true,
+        Alignment = new S.Alignment
+        {
+            Horizontal = header ? S.HorizontalAlignmentValues.Center : S.HorizontalAlignmentValues.Left,
+            Vertical = header ? S.VerticalAlignmentValues.Center : S.VerticalAlignmentValues.Top,
+            WrapText = true
+        }
+    };
 
     private static IEnumerable<Block> Descendants(ContainerBlock block)
     {

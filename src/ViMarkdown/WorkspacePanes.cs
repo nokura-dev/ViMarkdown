@@ -154,6 +154,7 @@ public sealed partial class MainWindow
             };
             Avalonia.Automation.AutomationProperties.SetName(sort, "ページの表示順");
             ToolTip.SetTip(sort, "ページの表示順");
+            _updatePageSortSelection = () => sort.SelectedIndex = (int)_pageSortOrder;
             sort.SelectionChanged += (_, _) =>
             {
                 if (sort.SelectedIndex < 0 || sort.SelectedIndex == (int)_pageSortOrder) return;

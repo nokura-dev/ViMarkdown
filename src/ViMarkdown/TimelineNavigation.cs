@@ -26,13 +26,41 @@ public sealed partial class MainWindow
         var stack = new StackPanel { Background = WorkspaceColors.Chrome };
         var timelineHeader = new Border
         {
-            Height = 38,
             BorderBrush = WorkspaceColors.Divider,
             BorderThickness = new Thickness(0, 0, 0, 1)
         };
-        AutomationProperties.SetName(timelineHeader, "期間");
-        ToolTip.SetTip(timelineHeader, "更新日で絞り込み");
-        
+        var menuButton = ToolbarButtons.Create("menu", "メニュー", "メニュー");
+        menuButton.Name = "ApplicationMenu";
+        menuButton.HorizontalAlignment = HorizontalAlignment.Center;
+        menuButton.VerticalAlignment = VerticalAlignment.Center;
+        var shortcuts = new MenuItem { Header = "ショートカット一覧" };
+        var storage = new MenuItem { Header = "データ保存場所の切替" };
+        storage.Click += async (_, _) => await SwitchWorkspaceAsync();
+        var about = new MenuItem { Header = "このアプリについて" };
+        var menu = new ContextMenu { ItemsSource = new[] { shortcuts, storage, about } };
+        menuButton.ContextMenu = menu;
+        menuButton.Click += (_, _) => menu.Open(menuButton);
+        shortcuts.Click += async (_, _) =>
+        {
+            if (!OwnedWindows.Any(w => w.IsVisible)) await HelpDialogs.ShowShortcuts(this);
+        };
+        about.Click += async (_, _) =>
+        {
+            if (!OwnedWindows.Any(w => w.IsVisible)) await HelpDialogs.ShowAbout(this);
+        };
+        // Match the other toolbars' 28px buttons and 5px vertical margins.
+        // Give the three horizontal strokes an explicit centered drawing box;
+        // uniform stretching otherwise leaves unused space below their geometry.
+        if (menuButton.Content is Avalonia.Controls.Shapes.Path menuIcon)
+        {
+            menuIcon.Height = 12;
+            menuIcon.Stretch = Stretch.Fill;
+            menuIcon.VerticalAlignment = VerticalAlignment.Center;
+        }
+        var menuRow = new Grid { Margin = new Thickness(0, 5), MinHeight = 28 };
+        menuRow.Children.Add(menuButton);
+        timelineHeader.Child = menuRow;
+
         var labels = new[] { "全て", "今日", "昨日", "今週", "先週", "今月", "先月", "先々月" };
         var buttons = new List<Button>();
         for (var index = 0; index < labels.Length; index++)

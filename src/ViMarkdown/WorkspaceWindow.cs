@@ -11,8 +11,10 @@ public sealed partial class MainWindow
     private readonly ListBox _notes = new();
     private readonly ListBox _pages = new() { SelectionMode = SelectionMode.Multiple };
     private readonly TextBlock _saveStatus = new() { Foreground = WorkspaceColors.Accent };
-    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _historyTimer = new() { Interval = TimeSpan.FromSeconds(180) };
     private PageSortOrder _pageSortOrder;
+    private Action? _updatePageSortSelection;
     private long? _noteId, _activePageId;
     private long? _automaticPageNameId;
     private bool _loading, _dirty, _rebuilding;
@@ -21,16 +23,18 @@ public sealed partial class MainWindow
     private Control BuildWorkspace(Control editor, string? databasePath)
     {
         _store = _workspaceOwner?._store ?? new WorkspaceStore(databasePath ?? Environment.GetEnvironmentVariable("VIMARKDOWN_DB") ??
-            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ViMarkdown", "workspace.db"));
+            WorkspaceConfiguration.DatabasePath());
         ConfigureWindowPlacement();
         if (Enum.TryParse<PageSortOrder>(_store.GetSetting("page-sort"), out var order) && Enum.IsDefined(order)) _pageSortOrder = order;
         _rich.ImageResolver = _store.GetImage;
         _rich.ImageCopyRequested += async data => await CopyImageAsync(data);
-        _saveTimer.Tick += (_, _) => SaveCurrent();
+        _saveTimer.Tick += (_, _) => SaveCurrent(recordHistory: false);
+        _historyTimer.Tick += (_, _) => SaveCurrent();
         Closing += (_, e) => { if (!PrepareEditorWindowsForClose()) e.Cancel = true; };
         Closed += (_, _) =>
         {
             _saveTimer.Stop();
+            _historyTimer.Stop();
             ++_modeSwitchGeneration;
             _rich.ImageResolver = null;
             _rich.ClearPage();
@@ -59,20 +63,35 @@ public sealed partial class MainWindow
             if (_pageSortOrder != PageSortOrder.Name) ReloadLists();
         };
         ConfigurePageDragDrop();
-        if (_store.GetSetting("initialized") is null)
-        {
-            var readme = ReadInitialPage("README.md");
-            var sample = ReadInitialPage("MarkdownSample.md");
-            var id = _store.Create("README.md", false, null, readme);
-            _store.Create("Markdown記法サンプル", false, null, sample);
-            _store.SetSetting("active", id.ToString()); _store.SetSetting("initialized", "1");
-        }
+        InitializeWorkspace(_store);
+        LoadWorkspace();
+        try { _store.PrepareEditHistory(); }
+        catch (Exception ex) { _saveStatus.Text = "編集履歴の準備失敗: " + ex.Message; }
+        return grid;
+    }
+
+    private static void InitializeWorkspace(WorkspaceStore store)
+    {
+        if (store.GetSetting("initialized") is not null) return;
+        var id = store.Create("README.md", false, null, ReadInitialPage("README.md"));
+        store.Create("Markdown記法サンプル", false, null, ReadInitialPage("MarkdownSample.md"));
+        store.SetSetting("active", id.ToString());
+        store.SetSetting("initialized", "1");
+    }
+
+    private void LoadWorkspace()
+    {
+        _noteId = null;
+        _pageSortOrder = PageSortOrder.Name;
+        if (Enum.TryParse<PageSortOrder>(_store.GetSetting("page-sort"), out var order) && Enum.IsDefined(order))
+            _pageSortOrder = order;
         var items = _store.Items();
         if (long.TryParse(_store.GetSetting("note"), out var note) && items.Any(i => i.Id == note && i.IsNote)) _noteId = note;
         if (long.TryParse(_store.GetSetting("active"), out var active) && items.FirstOrDefault(i => i.Id == active && !i.IsNote) is { } item)
         { _noteId = item.NoteId; OpenPage(active); }
         else OpenPage(null);
-        ReloadLists(); return grid;
+        ReloadLists();
+        _updatePageSortSelection?.Invoke();
     }
     private static string ReadInitialPage(string name)
     {
@@ -151,6 +170,7 @@ public sealed partial class MainWindow
     private void ScheduleSave()
     {
         if (_loading || _activePageId is null || IsPageDetached) return;
+        _historyTimer.Stop(); _historyTimer.Start();
         _dirty = true; _saveStatus.Text = "未保存…"; _saveTimer.Stop(); _saveTimer.Start();
     }
     private bool UpdateAutomaticPageName(long id)
@@ -168,14 +188,25 @@ public sealed partial class MainWindow
     private static string FormatPageWindowTitle(string name) =>
         PageNaming.WindowTitle(name);
 
-    private bool SaveCurrent()
+    private bool SaveCurrent(bool recordHistory = true)
     {
         _saveTimer.Stop();
-        if (!_dirty || _activePageId is null || IsPageDetached) return true;
+        if (_activePageId is null || IsPageDetached) return true;
         try
         {
+            if (recordHistory) _historyTimer.Stop();
+            if (!_dirty)
+            {
+                if (recordHistory)
+                {
+                    _store.FlushEditHistory(_activePageId.Value);
+                    _saveStatus.Text = "保存済み";
+                }
+                return true;
+            }
             _store.Save(_activePageId.Value, _pageContent.Text);
             var renamed = UpdateAutomaticPageName(_activePageId.Value);
+            if (recordHistory) _store.FlushEditHistory(_activePageId.Value);
             _dirty = false; _saveStatus.Text = "保存済み";
             if (IsDetachedEditor) _workspaceOwner!.RefreshDetachedPageMetadata();
             if ((renamed || _pageSortOrder != PageSortOrder.Name || _timelinePeriod != 0) && !_rebuilding) ReloadLists();

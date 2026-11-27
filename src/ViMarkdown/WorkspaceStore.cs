@@ -11,9 +11,17 @@ public sealed partial class WorkspaceStore : IDisposable
         DatabasePath = path;
         if (path != ":memory:") Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         _connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, ForeignKeys = true }.ToString());
-        _connection.Open();
-        InitializeSchema();
-        PurgeExpired(DateTimeOffset.UtcNow);
+        try
+        {
+            _connection.Open();
+            InitializeSchema();
+            PurgeExpired(DateTimeOffset.UtcNow);
+        }
+        catch
+        {
+            _connection.Dispose();
+            throw;
+        }
     }
     public void PurgeExpired(DateTimeOffset now) => Execute(
         "DELETE FROM items WHERE is_note=0 AND deleted_at IS NOT NULL AND deleted_at<=$cutoff",
@@ -83,7 +91,14 @@ public sealed partial class WorkspaceStore : IDisposable
         using var command = CreateCommand("SELECT last_insert_rowid()");
         return (long)command.ExecuteScalar()!;
     }
-    public void Save(long id, string body) => Execute("UPDATE items SET body=$b,updated_at=$u WHERE id=$id AND is_note=0 AND deleted_at IS NULL AND body<>$b", ("$b", body), ("$id", id), ("$u", DateTimeOffset.UtcNow.Ticks));
+    public void Save(long id, string body)
+    {
+        using var transaction = _connection.BeginTransaction();
+        if (DatabasePath != ":memory:")
+            Execute("INSERT OR IGNORE INTO edit_history_pending(page_id,baseline) SELECT id,body FROM items WHERE id=$id AND is_note=0 AND deleted_at IS NULL AND body<>$b", ("$id", id), ("$b", body));
+        Execute("UPDATE items SET body=$b,updated_at=$u WHERE id=$id AND is_note=0 AND deleted_at IS NULL AND body<>$b", ("$b", body), ("$id", id), ("$u", DateTimeOffset.UtcNow.Ticks));
+        transaction.Commit();
+    }
     public void Rename(long id, string name) { ValidateName(name); Execute("UPDATE items SET name=$n,updated_at=$u WHERE id=$id AND deleted_at IS NULL AND name<>$n", ("$n", name.Trim()), ("$id", id), ("$u", DateTimeOffset.UtcNow.Ticks)); }
     public void Delete(long id)
         => DeleteItems([id]);

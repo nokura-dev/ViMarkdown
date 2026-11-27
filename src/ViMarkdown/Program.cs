@@ -23,34 +23,9 @@ public sealed class App : Application
         var aboutItem = new NativeMenuItem("About ViMarkdown");
         aboutItem.Click += async (_, _) =>
         {
-            var dialog = new Window
-            {
-                Title = "About ViMarkdown",
-                Width = 460,
-                SizeToContent = SizeToContent.Height,
-                CanResize = false,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Content = new StackPanel
-                {
-                    Margin = new Thickness(28),
-                    Spacing = 12,
-                    Children =
-                    {
-                        new TextBlock { Text = "ViMarkdown", FontSize = 24 },
-                        new TextBlock { Text = "Version " + typeof(App).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().First().InformationalVersion.Split('+')[0] },
-                        new TextBlock { Text = "Markdownエディター" },
-                        new TextBlock { Text = "作者: nokura-dev" },
-                        new TextBlock { Text = "ライセンス: MIT" },
-                        new TextBlock { Text = "https://github.com/nokura-dev/ViMarkdown/" }
-                    }
-                }
-            };
-
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime
-                { MainWindow: { IsVisible: true } mainWindow })
-                await dialog.ShowDialog(mainWindow);
-            else
-                dialog.Show();
+                { MainWindow: { IsVisible: true } mainWindow } && !mainWindow.OwnedWindows.Any(w => w.IsVisible))
+                await HelpDialogs.ShowAbout(mainWindow);
         };
         NativeMenu.SetMenu(this, new NativeMenu { aboutItem });
     }

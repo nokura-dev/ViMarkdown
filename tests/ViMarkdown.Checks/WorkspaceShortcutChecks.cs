@@ -172,7 +172,7 @@ internal static class WorkspaceShortcutChecks
                 "F2は各編集モードから選択ページを対象にする");
             PressButton(dialog, "キャンセル");
             session.Key(PhysicalKey.M, RawInputModifiers.Control);
-            PressButton(Dialog("移動先を選択"), "キャンセル");
+            check(!window.OwnedWindows.Any(), "Ctrl+Mにはページ移動を割り当てない");
         }
         session.Click("INSERT (i)");
         session.Editor.Document.Text = "ABC";
