@@ -21,6 +21,7 @@ public sealed partial class MainWindow
             _searchOrigin = _caret;
             _commandPrompt = command.ToString(); _promptOpeningText = _commandPrompt;
             if (command == ':' && _mode == EditorMode.Visual) { _commandPrompt += "'<,'>"; SwitchMode(EditorMode.Normal); }
+            UpdateStatus();
             return true;
         }
         if (_mode == EditorMode.Visual && command is 'o' or 'O')

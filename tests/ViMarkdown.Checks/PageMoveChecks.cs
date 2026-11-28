@@ -134,6 +134,8 @@ internal static class PageMoveChecks
         bool AllIn(long? target) => store.Items().Where(p => ids[1..].Contains(p.Id)).All(p => p.NoteId == target);
         Select();
         session.Key(PhysicalKey.M, RawInputModifiers.Control);
+        check(!window.OwnedWindows.Any(), "Ctrl+Mはページ移動を起動しない");
+        session.Click("ページを移動");
         DialogButton("キャンセル");
         check(AllIn(null) && pages.SelectedItems!.Count == 3, "複数ページの移動キャンセルは所属と選択を保持する");
         session.Click("ページを移動");
@@ -141,9 +143,9 @@ internal static class PageMoveChecks
         DialogButton("移動");
         check(AllIn(note) && pages.SelectedItems!.Count == 3 && (long?)Field("_activePageId") == ids[1],
             "移動ボタンは選択全件を移動し起点と複数選択を保持する");
-        session.Key(PhysicalKey.M, RawInputModifiers.Control);
+        session.Click("ページを移動");
         DialogButton("移動");
-        check(AllIn(null) && pages.SelectedItems!.Count == 3, "Ctrl+Mでも選択全件を未分類へ移動する");
+        check(AllIn(null) && pages.SelectedItems!.Count == 3, "移動ボタンで選択全件を未分類へ移動する");
         session.Editor.Document.Text = "削除前に保存する本文";
         session.Click("ページを削除");
         check(ids[1..].All(id => store.TrashItems().Any(p => p.Id == id)) && store.Items().Any(p => p.Id == ids[0]),

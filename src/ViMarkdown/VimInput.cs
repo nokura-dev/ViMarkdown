@@ -16,11 +16,27 @@ public sealed partial class MainWindow
         _pendingLayoutKey = null;
         HandleVimKey(pending);
     }
+    private readonly Avalonia.Controls.TextBox _commandInput = new()
+    {
+        Name = "VimCommandInput", IsVisible = false, AcceptsReturn = false,
+        MinHeight = 0, FontSize = 12, Padding = new Avalonia.Thickness(0),
+        Background = WorkspaceColors.Chrome, Foreground = WorkspaceColors.Text,
+        BorderThickness = new Avalonia.Thickness(0), FocusAdorner = null
+    };
+    private readonly Avalonia.Controls.Border _commandInputRow = new() { Name = "VimCommandInputRow", IsVisible = false };
+    private readonly Avalonia.Controls.TextBlock _commandInputLabel = new();
+    private Avalonia.Controls.Grid _normalStatus = null!;
     private string? _commandPrompt;
     private string? _promptOpeningText;
 
     private void HandleVimPromptKey(object? sender, KeyEventArgs e)
     {
+        if (IsDetachedEditor && e.Key == Key.W && WorkspaceModifiers(e.KeyModifiers) == KeyModifiers.Control)
+        {
+            e.Handled = true;
+            if (!OwnedWindows.Any(w => w.IsVisible)) Close();
+            return;
+        }
         if (HandleSlideshowKey(e)) return;
         if (HandlePaneNavigation(e)) return;
         HandleWorkspaceShortcut(sender, e);
@@ -36,7 +52,17 @@ public sealed partial class MainWindow
         else if (e.Key == Key.Back)
         {
             if (_commandPrompt.Length > 1) _commandPrompt = _commandPrompt[..TextBoundaries.Previous(_commandPrompt, _commandPrompt.Length)];
-            UpdateStatus(); e.Handled = true;
+            if (_commandPrompt.Length == 1)
+            {
+                if (_commandPrompt[0] != ':') _caret = _searchOrigin;
+                _commandPrompt = null;
+                Refresh(); FocusEditingSurface();
+            }
+            else
+            {
+                UpdateStatus(); _commandInput.CaretIndex = _commandInput.Text?.Length ?? 0;
+            }
+            e.Handled = true;
         }
         else if (e.Key == Key.Enter)
         {
@@ -47,9 +73,9 @@ public sealed partial class MainWindow
                 if (command.Length > 1) _searchPattern = command[1..];
                 _searchBackward = command[0] == '?'; FindMatch(_searchBackward, 1);
             }
-            Refresh(); e.Handled = true;
+            Refresh(); FocusEditingSurface(); e.Handled = true;
         }
-        else e.Handled = true; // TextInput supplies text, including IME and keyboard layout.
+        // Leave printable keys to the focused TextBox, which owns native text/IME input.
     }
     private void HandleVimText(object? sender, TextInputEventArgs e)
     {
@@ -115,6 +141,7 @@ public sealed partial class MainWindow
         if (_commandPrompt is not null) { e.Handled = true; return; }
         if (e.Key == Key.Escape)
         {
+            if (_mode == EditorMode.Normal) HideVimSearchHighlights();
             _vimKeys = ""; SwitchMode(EditorMode.Normal); e.Handled = true; return;
         }
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))

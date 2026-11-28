@@ -45,11 +45,12 @@ internal static class D2Checks
         {
             var pages = new[] { new WorkspaceItem(10, null, "フロー", false, source), new WorkspaceItem(11, null, "エラー", false, "```d2\nbad\n```\n") };
             var output = MarkdownExport.Write(root, pages, _ => null, code => code.Contains("bad") ? bad : new(png, null));
-            var body = File.ReadAllText(Path.Combine(output.Directory, "フロー(10).md"));
-            check(output.Images == 1 && body.Contains("![D2](assets/フロー%2810%29-d2-1.png)"), "個別出力でD2をPNG参照へ変換");
-            check(File.ReadAllBytes(Path.Combine(output.Directory, "assets", "フロー(10)-d2-1.png")).SequenceEqual(png), "出力画像のバイト列を保持");
-            check(output.D2Errors.Count == 1 && File.ReadAllText(Path.Combine(output.Directory, "エラー(11).md")).Contains("```d2\nbad\n```") && File.Exists(Path.Combine(output.Directory, "d2-errors.txt")), "失敗した図はコードを保持してエラー一覧を出力");
-            check(pages[0].Body == source, "画像出力で元のD2コードを変更しない");
+            var body = File.ReadAllText(Path.Combine(output.Directory, "フロー.md"));
+            check(output.Images == 0 && body == source, "Markdown出力ではD2フェンス原文を保持して画像を生成しない");
+            check(output.D2Errors.Count == 0 && output.ErrorReports.Count == 0 &&
+                File.ReadAllText(Path.Combine(output.Directory, "エラー.md")) == pages[1].Body,
+                "Markdown出力では不正なD2も描画せず原文を保持する");
+            check(pages[0].Body == source, "Markdown出力で元のD2コードを変更しない");
             if (integration)
             {
                 var real = D2Renderer.Shared.RenderAsync(diagram.D2Code).GetAwaiter().GetResult();
@@ -77,7 +78,7 @@ internal static class D2Checks
                 var blocked = D2Renderer.Shared.RenderAsync("layers: { detail: { a -> b } }").GetAwaiter().GetResult();
                 check(!blocked.Success && blocked.Error!.Contains("Layers"), "実描画経路でも複数ボードを拒否");
                 var exported = MarkdownExport.Write(root, [pages[0]], _ => null);
-                check(exported.Images == 1 && exported.D2Errors.Count == 0, "公式D2描画結果で実際にMarkdown出力");
+                check(exported.Images == 0 && exported.D2Errors.Count == 0, "Markdown出力はD2描画を行わない");
             }
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }

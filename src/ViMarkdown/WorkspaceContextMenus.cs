@@ -13,7 +13,7 @@ public sealed partial class MainWindow
         {
             var icon = action.Label switch
             {
-                "ノート作成" => "note", "ページ作成" => "page",
+                "ノート作成" => "note", "ページ作成" => "page", "ページ作成(mdファイルから)" => "page",
                 "名前変更" => "rename", "ノート移動" => "move", "削除" => "delete",
                 _ => throw new InvalidOperationException("未定義のメニュー: " + action.Label)
             };
@@ -25,8 +25,14 @@ public sealed partial class MainWindow
             item.Click += async (_, _) => await action.Run();
             return item;
         }).ToList();
+        var openWindow = new MenuItem { Header = "別ウィンドウで開く", Icon = ToolbarButtons.CreateIcon("windows") };
+        openWindow.Click += (_, _) =>
+        {
+            if (target is WorkspaceItem { IsNote: false } page) OpenDetachedEditor(page.Id);
+        };
         var md = new MenuItem { Header = "md出力", Icon = ToolbarButtons.CreateIcon("export-md", WorkspaceColors.Accent) };
         var docx = new MenuItem { Header = "docx出力", Icon = ToolbarButtons.CreateIcon("export-docx", WorkspaceColors.Accent) };
+        var xlsx = new MenuItem { Header = "xlsx出力", Icon = ToolbarButtons.CreateIcon("export-docx", WorkspaceColors.Accent) };
         list.ContextRequested += (sender, e) =>
         {
             var pointerRequest = e.TryGetPosition(list, out var position);
@@ -52,8 +58,9 @@ public sealed partial class MainWindow
                 else valid = false;
             }
             for (var i = 0; i < commands.Count; i++)
-                commands[i].IsEnabled = i == 0 || (valid && (!notes || target is NoteChoice { Id: not null }));
-            md.IsEnabled = docx.IsEnabled = valid && (target switch
+                commands[i].IsEnabled = (i == 0 || Equals(commands[i].Header, "ページ作成(mdファイルから)")) || (valid && (!notes || target is NoteChoice { Id: not null }));
+            openWindow.IsEnabled = !notes && valid;
+            md.IsEnabled = docx.IsEnabled = xlsx.IsEnabled = valid && (target switch
             {
                 NoteChoice note when notes => CanExportPages(false, note.Id),
                 WorkspaceItem page when !notes => CanExportPages(true, page.Id),
@@ -61,6 +68,11 @@ public sealed partial class MainWindow
             });
         };
         var menuItems = new List<Control>();
+        if (!notes)
+        {
+            menuItems.Add(openWindow);
+            menuItems.Add(new Separator());
+        }
         foreach (var command in commands)
         {
             if (Equals(command.Header, "削除")) menuItems.Add(new Separator());
@@ -69,6 +81,7 @@ public sealed partial class MainWindow
         menuItems.Add(new Separator());
         menuItems.Add(md);
         menuItems.Add(docx);
+        menuItems.Add(xlsx);
         foreach (var item in menuItems.OfType<MenuItem>())
         {
             item.PropertyChanged += (_, e) =>
@@ -81,10 +94,12 @@ public sealed partial class MainWindow
         md.Click += async (_, _) => await ExportTargetAsync(false);
         docx.Click += async (_, _) => await ExportTargetAsync(true);
 
-        System.Threading.Tasks.Task ExportTargetAsync(bool asDocx) => target switch
+        xlsx.Click += async (_, _) => await ExportTargetAsync(false, true);
+
+        System.Threading.Tasks.Task ExportTargetAsync(bool asDocx, bool asXlsx = false) => target switch
         {
-            NoteChoice note when notes => ExportPagesAsync(asDocx, false, note.Id),
-            WorkspaceItem page when !notes => ExportPagesAsync(asDocx, true, page.Id),
+            NoteChoice note when notes => ExportPagesAsync(asDocx, false, note.Id, asXlsx),
+            WorkspaceItem page when !notes => ExportPagesAsync(asDocx, true, page.Id, asXlsx),
             _ => System.Threading.Tasks.Task.CompletedTask
         };
     }

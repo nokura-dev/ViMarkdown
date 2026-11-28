@@ -28,13 +28,18 @@ public sealed partial class MainWindow : Window
     private bool _aligningContent;
     private bool _sourceRefreshPending;
     public MainWindow() : this(null) { }
-    public MainWindow(string? databasePath)
+    public MainWindow(string? databasePath) : this(databasePath, null, null) { }
+    private MainWindow(string? databasePath, MainWindow? workspaceOwner, long? pageId)
     {
+        _workspaceOwner = workspaceOwner;
+        _detachedPageId = pageId;
         _source = new SourceNavigation(_pageContent);
+        Activated += (_, _) => MacInputMode.SynchronizeMainWindow(this);
         Deactivated += (_, _) => CancelPendingCommand();
         Closed += (_, _) => CancelPendingCommand();
         Title = "ViMarkdown";
-        Width = 1400; MinWidth = MinimumWorkspaceWidth; Height = 760; MinHeight = MinimumWorkspaceHeight;
+        Width = IsDetachedEditor ? 900 : 1400; MinWidth = IsDetachedEditor ? MinimumEditorWidth : MinimumWorkspaceWidth;
+        Height = 760; MinHeight = IsDetachedEditor ? 300 : MinimumWorkspaceHeight;
         Background = WorkspaceColors.Editor;
         Foreground = WorkspaceColors.Text;
         _editor = CreateSourceEditor();
@@ -88,6 +93,7 @@ public sealed partial class MainWindow : Window
             }, DispatcherPriority.Loaded);
         }
         if (!_loading && _mode != EditorMode.Insert) _rich.SetSource(_pageContent.Text);
+        UpdateSearchHighlights();
         UpdateStatus();
         ScheduleSave();
     }
@@ -122,6 +128,7 @@ public sealed partial class MainWindow : Window
             if (_caret != _source.LineAt(_caret).EndOffset)
                 _caret = _rich.NormalizePosition(_caret);
         }
+        UpdateSearchHighlights();
         _rich.Caret = _caret; _rich.Anchor = null;
         _rich.SelectionRanges = _mode == EditorMode.Visual ? VimSelection() : null;
         UpdateStatus();
@@ -136,6 +143,18 @@ public sealed partial class MainWindow : Window
         }
         var offset = _mode == EditorMode.Insert ? _editor.CaretOffset : _caret;
         var location = _pageContent.GetLocation(Math.Clamp(offset, 0, _pageContent.TextLength));
-        _status.Text = _commandPrompt is not null ? _commandPrompt : $"モード: {_mode.ToString().ToUpperInvariant()}{(_vimKeys.Length > 0 ? "  " + _vimKeys : "")}  |  行数:{_pageContent.LineCount}  |  文字数:{_pageContent.TextLength}  |  位置: {location.Column},{location.Line}";
+        var openingPrompt = _commandPrompt is not null && !_commandInput.IsVisible;
+        _commandInput.IsVisible = _commandPrompt is not null;
+        _commandInputRow.IsVisible = _commandPrompt is not null;
+        _normalStatus.IsVisible = _commandPrompt is null;
+        _commandInputLabel.Text = _commandPrompt is not null ? _commandPrompt[..1] : "";
+        if (_commandPrompt is not null && _commandInput.Text != _commandPrompt[1..])
+            _commandInput.Text = _commandPrompt[1..];
+        if (openingPrompt)
+        {
+            _commandInput.Focus();
+            _commandInput.CaretIndex = _commandInput.Text?.Length ?? 0;
+        }
+        _status.Text = $"モード: {_mode.ToString().ToUpperInvariant()}{(_vimKeys.Length > 0 ? "  " + _vimKeys : "")}  |  行数:{_pageContent.LineCount}  |  文字数:{_pageContent.TextLength}  |  位置: {location.Column},{location.Line}";
     }
 }

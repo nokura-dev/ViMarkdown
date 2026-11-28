@@ -12,6 +12,7 @@ public sealed partial class WorkspaceStore
         }
 
         Execute("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS items(id INTEGER PRIMARY KEY, note_id INTEGER REFERENCES items(id) ON DELETE CASCADE, name TEXT NOT NULL, is_note INTEGER NOT NULL, body TEXT NOT NULL DEFAULT ''); CREATE TABLE IF NOT EXISTS images(id TEXT PRIMARY KEY, data BLOB NOT NULL); CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);");
+        Execute("CREATE TABLE IF NOT EXISTS edit_history_pending(page_id INTEGER PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE, baseline TEXT NOT NULL)");
         if (!HasItemColumn("updated_at"))
             Execute("ALTER TABLE items ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0");
         if (!HasItemColumn("deleted_at"))

@@ -75,9 +75,24 @@ public sealed partial class MainWindow
 
     private bool HandlePaneNavigation(KeyEventArgs e)
     {
+        if (IsDetachedEditor && WorkspaceModifiers(e.KeyModifiers) == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
+        {
+            if (e.Key == Key.Right && _searchResultsPane.IsVisible) _searchResults.Focus();
+            else FocusEditingSurface();
+            e.Handled = true;
+            return true;
+        }
+        if (IsPageDetached && _detachedPageNotice?.IsKeyboardFocusWithin == true &&
+            WorkspaceModifiers(e.KeyModifiers) == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
+        {
+            if (e.Key == Key.Left) FocusPane(_pagesCollapsed ? (_notesCollapsed ? 0 : 1) : 2);
+            else if (_searchResultsPane.IsVisible) FocusPaneList(_searchResults);
+            e.Handled = true;
+            return true;
+        }
         var pane = _paneBodies.FirstOrDefault(p => p.Value.IsKeyboardFocusWithin).Key;
         var within = _paneBodies.Values.Any(p => p.IsKeyboardFocusWithin);
-        if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
+        if (WorkspaceModifiers(e.KeyModifiers) == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
         {
             // Toolbar focus belongs to its surrounding pane for horizontal navigation.
             if (!within)
@@ -88,6 +103,7 @@ public sealed partial class MainWindow
                 pane = owner.Key;
             }
             var target = pane + (e.Key == Key.Left ? -1 : 1);
+            while (IsWorkspacePaneCollapsed(target)) target += e.Key == Key.Left ? -1 : 1;
             if (target >= 0 && target <= (_searchResultsPane.IsVisible ? 4 : 3))
             {
                 CancelPendingCommand();

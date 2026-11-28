@@ -109,7 +109,7 @@ public sealed partial class MainWindow
         if (pages.Count == 0 || !SaveCurrent()) return false;
         _store.MovePages(pages.Select(p => p.Id), noteId);
         if (pages.Any(p => p.Id == _activePageId)) _noteId = noteId;
-        ReloadLists();
+        RefreshDetachedPageMetadata();
         return true;
     }
 

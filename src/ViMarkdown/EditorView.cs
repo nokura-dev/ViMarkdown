@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Styling;
 using Avalonia.Layout;
 using Avalonia.Media;
 using AvaloniaEdit;
@@ -34,7 +36,7 @@ public sealed partial class MainWindow
         var markdown = new LightPlusMarkdown();
         editor.TextArea.TextView.LineTransformers.Add(markdown);
         editor.TextArea.TextView.BackgroundRenderers.Add(markdown);
-        editor.TextArea.TextView.LineTransformers.Add(new SearchHighlight(() => _workspaceSearchRanges));
+        editor.TextArea.TextView.LineTransformers.Add(new SearchHighlight(() => _displaySearchRanges));
         var lineNumbers = editor.TextArea.LeftMargins.OfType<AvaloniaEdit.Editing.LineNumberMargin>().Single();
         const double lineNumberGap = 6;
         // Move the gutter into the existing left padding, returning the same
@@ -71,7 +73,35 @@ public sealed partial class MainWindow
         editor.TextArea.SelectionBrush = WorkspaceColors.Selection;
         editor.TextArea.SelectionForeground = WorkspaceColors.Text;
         editor.TextArea.Caret.CaretBrush = WorkspaceColors.Accent;
+        ConfigureEditorContextMenu(editor);
         return editor;
+    }
+
+    private void ConfigureCommandInputAppearance()
+    {
+        _commandInput.Background = WorkspaceColors.Chrome;
+        _commandInput.BorderBrush = Brushes.Transparent;
+        _commandInput.FontSize = _status.FontSize;
+        _commandInputLabel.FontSize = _status.FontSize;
+        // Fluent changes template borders on hover/focus independently of TextBox properties.
+        // Scope these overrides to the command box so native text/IME handling stays intact.
+        foreach (var state in new[] { "", ":pointerover", ":focus", ":focus-within", ":disabled" })
+        {
+            var border = new Style(selector =>
+            {
+                var box = selector.OfType<TextBox>().Name("VimCommandInput");
+                if (state.Length > 0) box = box.Class(state);
+                return box.Template().OfType<Border>();
+            });
+            border.Setters.Add(new Setter(Border.BackgroundProperty, WorkspaceColors.Chrome));
+            border.Setters.Add(new Setter(Border.BorderBrushProperty, Brushes.Transparent));
+            border.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(0)));
+            _commandInput.Styles.Add(border);
+        }
+        var text = new Style(s => s.OfType<TextBox>().Name("VimCommandInput")
+            .Template().OfType<TextPresenter>());
+        text.Setters.Add(new Setter(Avalonia.Controls.Documents.TextElement.FontSizeProperty, _status.FontSize));
+        _commandInput.Styles.Add(text);
     }
 
     private Control BuildEditorPane()
@@ -99,6 +129,18 @@ public sealed partial class MainWindow
         var search = BuildSearchBox();
         Grid.SetColumn(search, 2); toolbarLayout.Children.Add(search);
         var toolbarRow = new ScrollViewer { Name = "EditorToolbarScroll", Focusable = false, IsTabStop = false, Content = toolbarLayout, HorizontalContentAlignment = HorizontalAlignment.Stretch, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        var commandLayout = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        _commandInputLabel.FontSize = 12;
+        _commandInputLabel.VerticalAlignment = VerticalAlignment.Center;
+        _commandInputLabel.Foreground = WorkspaceColors.Accent;
+        _commandInputLabel.Margin = new Thickness(0, 0, 8, 0);
+        commandLayout.Children.Add(_commandInputLabel);
+        Grid.SetColumn(_commandInput, 1);
+        commandLayout.Children.Add(_commandInput);
+        _commandInputRow.Background = Brushes.Transparent;
+        _commandInputRow.Padding = new Thickness(0);
+        _commandInputRow.Child = commandLayout;
+
         var toolbarHeader = new Border
         {
             Background = WorkspaceColors.Chrome,
@@ -109,6 +151,7 @@ public sealed partial class MainWindow
         DockPanel.SetDock(toolbarHeader, Dock.Top); root.Children.Add(toolbarHeader);
         var statusItems = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         _status.FontSize = 12;
+        ConfigureCommandInputAppearance();
         _status.Foreground = WorkspaceColors.Muted;
         _status.VerticalAlignment = VerticalAlignment.Center;
         _saveStatus.FontSize = 12;
@@ -121,7 +164,15 @@ public sealed partial class MainWindow
             Background = WorkspaceColors.Divider,
             VerticalAlignment = VerticalAlignment.Center
         });
-        statusItems.Children.Add(_saveStatus);
+        // Share the save-state slot while retaining its latest text during
+        // the conversion notification (including automatic saves).
+        _conversionStatusDisplay.Foreground = _saveStatus.Foreground;
+        _conversionStatusDisplay.FontSize = _saveStatus.FontSize;
+        _conversionStatusDisplay.VerticalAlignment = _saveStatus.VerticalAlignment;
+        var saveStatusSlot = new Grid();
+        saveStatusSlot.Children.Add(_saveStatus);
+        saveStatusSlot.Children.Add(_conversionStatusDisplay);
+        statusItems.Children.Add(saveStatusSlot);
         var slideshow = ToolbarButtons.Create("slideshow", "スライドショー", "スライドショー (F5) — Escで終了");
         slideshow.Name = "SlideshowButton";
         // Match the existing text row; the standard toolbar button is too tall.
@@ -139,22 +190,36 @@ public sealed partial class MainWindow
         };
         slideshow.VerticalAlignment = VerticalAlignment.Center;
         slideshow.Click += (_, _) => StartSlideshow();
-        var statusLayout = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var statusLayout = _normalStatus = new Grid { Name = "EditorStatusDisplay", ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         statusLayout.Children.Add(new ScrollViewer
         {
             Content = statusItems,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
         });
+        _commandInput.TextChanged += (_, _) =>
+        {
+            if (_commandPrompt is not null && _commandInput.IsVisible)
+                _commandPrompt = _commandPrompt[..1] + (_commandInput.Text ?? "");
+        };
         Grid.SetColumn(slideshow, 1);
         statusLayout.Children.Add(slideshow);
+        var statusHost = new Grid();
+        statusHost.Children.Add(statusLayout);
+        statusHost.Children.Add(_commandInputRow);
+        // Reuse the measured status height, including while its normal content is hidden.
+        statusLayout.SizeChanged += (_, e) =>
+        {
+            if (statusLayout.IsVisible && e.NewSize.Height > 0)
+                statusHost.Height = e.NewSize.Height;
+        };
         var statusBar = new Border
         {
             Background = WorkspaceColors.Chrome,
             BorderBrush = WorkspaceColors.Divider,
             BorderThickness = new Thickness(0, 1, 0, 0),
             Padding = new Thickness(12, 5),
-            Child = statusLayout
+            Child = statusHost
         };
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         var area = _editorArea = new Grid { Focusable = true }; area.Children.Add(_preview); area.Children.Add(_editor);

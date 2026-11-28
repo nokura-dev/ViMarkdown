@@ -15,6 +15,10 @@ internal static class ToolbarButtons
     // Small, font-independent outline icons on a 16 × 16 grid.
     private static readonly Dictionary<string, string> Icons = new()
     {
+        ["menu"] = "M2,4 L14,4 M2,8 L14,8 M2,12 L14,12",
+        ["collapse"] = "M10,3 L5,8 L10,13",
+        ["expand"] = "M6,3 L11,8 L6,13",
+        ["windows"] = "M5,4 L5,1 L15,1 L15,11 L12,11 M1,5 L11,5 L11,15 L1,15 Z M1,8 L11,8 M5,4 L15,4",
         ["slideshow"] = "M2,2 L14,2 L14,11 L2,11 Z M8,11 L8,14 M5,15 L8,13 L11,15 M6,4 L10,6.5 L6,9 Z",
         ["normal"] = "M3,2 L3,13 L6,10 L8,14 L10,13 L8,9 L12,9 Z",
         ["visual"] = "M2,6 L2,2 L6,2 M10,2 L14,2 L14,6 M14,10 L14,14 L10,14 M6,14 L2,14 L2,10 M5,8 L11,8",

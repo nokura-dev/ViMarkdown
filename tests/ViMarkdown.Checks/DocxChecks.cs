@@ -25,34 +25,34 @@ static class DocxChecks
             {
                 var result = DocxExport.WriteAsync(root, store.Items(), store.GetImage, _ => new D2Result(png, null)).GetAwaiter().GetResult();
                 var files = Directory.GetFiles(result.Directory, "*.docx");
-                check(files.Length == 2, "DOCX個別出力のファイル数");
+                check(files.Length == 2, "docx個別出力のファイル数");
                 foreach (var file in files)
                 {
                     using var doc = WordprocessingDocument.Open(file, false);
-                    check(!new OpenXmlValidator().Validate(doc).Any(), "DOCX再オープン・スキーマ検証");
+                    check(!new OpenXmlValidator().Validate(doc).Any(), "docx再オープン・スキーマ検証");
                     var body = doc.MainDocumentPart!.Document!.Body!;
                     var margins = body.GetFirstChild<W.SectionProperties>()!.GetFirstChild<W.PageMargin>()!;
                     check(margins.Top!.Value == 850 && margins.Bottom!.Value == 850 &&
                         margins.Left!.Value == 850 && margins.Right!.Value == 850,
-                        "DOCX上下左右の余白15mm");
+                        "docx上下左右の余白15mm");
                     var textRuns = body.Descendants<W.Run>().Where(r => r.Elements<W.Text>().Any()).ToArray();
                     check(textRuns.All(r => r.RunProperties?.GetFirstChild<W.RunFonts>() is { } fonts &&
                         fonts.Ascii?.Value == "Meiryo UI" && fonts.HighAnsi?.Value == "Meiryo UI" &&
                         fonts.EastAsia?.Value == "Meiryo UI" && fonts.ComplexScript?.Value == "Meiryo UI"),
-                        "DOCX日本語・英字・見出し・表・コードのフォントをMeiryo UIに統一");
+                        "docx日本語・英字・見出し・表・コードのフォントをMeiryo UIに統一");
                     var defaults = doc.MainDocumentPart.StyleDefinitionsPart!.Styles!
                         .GetFirstChild<W.DocDefaults>()!.GetFirstChild<W.RunPropertiesDefault>()!
                         .GetFirstChild<W.RunPropertiesBaseStyle>()!;
                     check(defaults.GetFirstChild<W.RunFonts>()!.EastAsia!.Value == "Meiryo UI" &&
                         defaults.GetFirstChild<W.FontSize>()!.Val!.Value == "20",
-                        "DOCX文書既定書式もMeiryo UI・10pt");
+                        "docx文書既定書式もMeiryo UI・10pt");
                     check(textRuns.Where(r => (r.Parent as W.Paragraph)?.ParagraphProperties?.GetFirstChild<W.OutlineLevel>() is null)
                         .All(r => r.RunProperties!.GetFirstChild<W.FontSize>()?.Val?.Value == "20" &&
                             r.RunProperties.GetFirstChild<W.FontSizeComplexScript>()?.Val?.Value == "20"),
-                        "DOCX本文・ページ名・表・コードは10pt");
+                        "docx本文・ページ名・表・コードは10pt");
                     if (!doc.MainDocumentPart!.Document!.InnerText.Contains("見出し")) continue;
                     var headings = body.Elements<W.Paragraph>()
-                        .Where(p => p.ParagraphProperties?.GetFirstChild<W.OutlineLevel>() is not null).ToArray();
+                        .Where(p => p.ParagraphProperties?.GetFirstChild<W.OutlineLevel>()?.Val?.Value is >= 0 and <= 5).ToArray();
                     var sizes = new[] { "36", "32", "28", "24", "22", "20" };
                     check(headings.Length == 6 && headings.Select((p, i) =>
                         p.ParagraphProperties!.GetFirstChild<W.OutlineLevel>()!.Val!.Value == i &&
@@ -60,14 +60,14 @@ static class DocxChecks
                             r.RunProperties!.GetFirstChild<W.FontSize>()?.Val?.Value == sizes[i] &&
                             r.RunProperties.GetFirstChild<W.FontSizeComplexScript>()?.Val?.Value == sizes[i] &&
                             r.RunProperties.GetFirstChild<W.Bold>() is not null)).All(value => value),
-                        "DOCX見出しH1〜H6は18・16・14・12・11・10ptの太字とアウトライン");
-                    check(doc.MainDocumentPart!.ImageParts.Count() == 3, "DOCX画像・図・欠損代替画像を内部に埋め込み");
-                    check(doc.MainDocumentPart!.Document!.Descendants<W.Table>().Count() == 1, "DOCX表を変換");
-                    check(doc.MainDocumentPart!.Document!.Descendants<W.Bold>().Any() && doc.MainDocumentPart!.Document!.Descendants<W.Italic>().Any(), "DOCX強調書式");
+                        "docx見出しH1〜H6は18・16・14・12・11・10ptの太字とアウトライン");
+                    check(doc.MainDocumentPart!.ImageParts.Count() == 3, "docx画像・図・欠損代替画像を内部に埋め込み");
+                    check(doc.MainDocumentPart!.Document!.Descendants<W.Table>().Count() == 1, "docx表を変換");
+                    check(doc.MainDocumentPart!.Document!.Descendants<W.Bold>().Any() && doc.MainDocumentPart!.Document!.Descendants<W.Italic>().Any(), "docx強調書式");
                 }
-                check(result.MissingImages.Count == 1 && File.Exists(Path.Combine(result.Directory, "missing-images.txt")), "DOCX欠損画像を報告");
+                check(result.MissingImages.Count == 1 && File.Exists(Path.Combine(result.Directory, result.ErrorReports[id])), "docx欠損画像を報告");
             }
-            check(store.Items().First(d => d.Id == id).Body.Contains(asset), "DOCX出力後も元ページ保持");
+            check(store.Items().First(d => d.Id == id).Body.Contains(asset), "docx出力後も元ページ保持");
         }
         finally { Directory.Delete(root, true); }
     }

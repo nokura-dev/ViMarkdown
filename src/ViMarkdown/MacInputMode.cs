@@ -5,6 +5,27 @@ namespace ViMarkdown;
 
 internal static class MacInputMode
 {
+    // Cocoa distinguishes the keyboard target from the main document window.
+    // Promote only the actual key window, without changing keyboard focus.
+    public static void SynchronizeMainWindow(Window owner)
+    {
+        if (!OperatingSystem.IsMacOS() || !owner.IsActive) return;
+        var handle = owner.TryGetPlatformHandle();
+        if (handle is null || handle.Handle == IntPtr.Zero) return;
+        var window = handle.HandleDescriptor switch
+        {
+            "NSWindow" => handle.Handle,
+            "NSView" => Send(handle.Handle, Selector("window")),
+            _ => IntPtr.Zero
+        };
+        if (window == IntPtr.Zero) return;
+        var app = Send(GetClass("NSApplication"), Selector("sharedApplication"));
+        if (Send(app, Selector("keyWindow")) != window ||
+            Send(app, Selector("mainWindow")) == window ||
+            Send(window, Selector("canBecomeMainWindow")) == IntPtr.Zero) return;
+        Send(window, Selector("makeMainWindow"));
+    }
+
     public static string? CurrentKeyText(Window owner)
     {
         // A preview has no IME client, so TextInput is not guaranteed to arrive.

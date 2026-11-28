@@ -17,7 +17,7 @@
 | 変更例 | 対象 |
 |---|---|
 | `DocxExport.cs` | `DocxChecks` |
-| `MarkdownExport.cs`・`ExportFileNames.cs` | MD出力・DOCX出力・D2出力 |
+| `MarkdownExport.cs`・`ExportFileNames.cs` | MD出力・docx出力・D2出力 |
 | `WorkspaceSearch.cs` | `WorkspaceSearchChecks` |
 | Vimキー解釈・入力・移動・編集・macOS入力 | 画面操作の回帰スイート一式（IME・履歴・フォーカス・検索・ショートカット等も含む） |
 | 個別のテストファイル | 対象スイート。`PageInkAlignmentChecks` はそのヘルパーを使う `ModeAlignmentChecks` も対象 |
@@ -46,5 +46,5 @@
 実装時の検証（2026-11-20）:
 
 - `--all` で32スイート・2,036チェックが成功（選択機構の69チェックを含む）。
-- 実コマンドで無変更時の省略、全件優先、破損記録、初回、DOCXだけの選択と記録更新、dry-runの無書き込み、不正指定、古いビルドの拒否を確認。
+- 実コマンドで無変更時の省略、全件優先、破損記録、初回、docxだけの選択と記録更新、dry-runの無書き込み、不正指定、古いビルドの拒否を確認。
 - Releaseビルド成功、警告0・エラー0。

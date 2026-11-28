@@ -63,6 +63,6 @@ internal static class VimKeyMap
         or Key.OemPeriod or Key.OemQuestion or Key.Oem8;
 
     public static bool UsesNativeText(Key key, string? text) =>
-        IsLayoutPunctuation(key) && (key == Key.OemPlus || text is "^" or "{" or "}");
+        IsLayoutPunctuation(key) && (key == Key.OemPlus || text is "^" or "{" or "}" or ":" or "/" or "?" or "*");
 
 }

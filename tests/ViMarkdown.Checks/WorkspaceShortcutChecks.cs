@@ -14,7 +14,7 @@ internal static class WorkspaceShortcutChecks
         using var session = new EditorSession();
         var window = session.Window;
         void Save() => typeof(ViMarkdown.MainWindow).GetMethod("SaveCurrent",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window, null);
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window, new object[] { true });
         var existingTitle = window.Title;
         session.Editor.Document.Text = "2026/11/20 10:00\n# 既存ページは変更しない";
         Save();
@@ -172,7 +172,7 @@ internal static class WorkspaceShortcutChecks
                 "F2は各編集モードから選択ページを対象にする");
             PressButton(dialog, "キャンセル");
             session.Key(PhysicalKey.M, RawInputModifiers.Control);
-            PressButton(Dialog("移動先を選択"), "キャンセル");
+            check(!window.OwnedWindows.Any(), "Ctrl+Mにはページ移動を割り当てない");
         }
         session.Click("INSERT (i)");
         session.Editor.Document.Text = "ABC";

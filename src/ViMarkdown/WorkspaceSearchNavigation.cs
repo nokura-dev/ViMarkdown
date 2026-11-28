@@ -11,8 +11,9 @@ public sealed partial class MainWindow
     {
         var keyword = _searchKeyword.Text ?? "";
         if (string.IsNullOrWhiteSpace(keyword)) { _searchKeyword.Focus(); return; }
-        var scope = (WorkspaceSearchScope)_searchScope.SelectedIndex;
-        var hits = WorkspaceSearch.Find(_store.Items(), scope, _noteId, _activePageId, keyword, _pageContent.Text);
+        if (!SaveAllEditors()) return;
+        var scope = IsDetachedEditor ? WorkspaceSearchScope.CurrentPage : (WorkspaceSearchScope)_searchScope.SelectedIndex;
+        var hits = WorkspaceSearch.Find(_store.Items(), scope, _noteId, _activePageId, keyword, IsPageDetached ? null : _pageContent.Text);
         if (hits.Count == 0) ClearWorkspaceHighlights();
         _searchResults.ItemsSource = hits;
         _searchResultsPane.IsVisible = true;
@@ -29,7 +30,7 @@ public sealed partial class MainWindow
 
     private void NavigateToSearchHit(WorkspaceSearchHit hit, bool keepResultsFocus)
     {
-        if (!SaveCurrent()) return;
+        if (!SaveAllEditors()) return;
         var items = _store.Items();
         var page = items.FirstOrDefault(p => !p.IsNote && p.Id == hit.PageId);
         if (page is null) { _saveStatus.Text = "検索結果のページは削除されています。再検索してください。"; return; }
@@ -40,6 +41,12 @@ public sealed partial class MainWindow
         _noteId = page.NoteId;
         if (_activePageId != page.Id) OpenPage(page.Id);
         ReloadLists();
+        if (_detachedEditors.TryGetValue(page.Id, out var window))
+        {
+            BringEditorToFront(window);
+            window.JumpToSearchOffset(match.Offset, hit.Keyword, keepResultsFocus: false);
+            return;
+        }
         JumpToSearchOffset(match.Offset, hit.Keyword, keepResultsFocus);
     }
 
@@ -52,7 +59,7 @@ public sealed partial class MainWindow
         _editor.Select(offset, 0);
         _highlightKeyword = keyword;
         _workspaceSearchRanges = WorkspaceSearch.Matches(_pageContent.Text, keyword);
-        _rich.SearchRanges = _workspaceSearchRanges;
+        UpdateSearchHighlights();
         Refresh();
         // Keep the exact source offset even when matching Markdown delimiters.
         _caret = offset; _rich.Caret = offset;
@@ -102,8 +109,6 @@ public sealed partial class MainWindow
     {
         _highlightKeyword = "";
         _workspaceSearchRanges = [];
-        _rich.SearchRanges = [];
-        _rich.InvalidateVisual();
-        _editor.TextArea.TextView.Redraw();
+        UpdateSearchHighlights();
     }
 }

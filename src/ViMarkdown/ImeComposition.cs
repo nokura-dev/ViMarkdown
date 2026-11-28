@@ -95,10 +95,18 @@ internal sealed class ImeComposition : TextInputMethodClient
     private TextLayout Layout() => new(_text, new Typeface(_area.FontFamily), _area.FontSize,
         _area.Foreground, maxWidth: Math.Max(1, _area.TextView.Bounds.Width - Origin().X),
         textWrapping: TextWrapping.Wrap);
+    private Rect ViewportCaretRectangle()
+    {
+        // AvaloniaEdit 11.3's IME client forwards document coordinates without
+        // subtracting the scroll offset. Use the caret's documented coordinates
+        // directly and convert them to the TextView viewport exactly once.
+        var rect = _area.Caret.CalculateCaretRectangle();
+        return new Rect(rect.TopLeft - _area.TextView.ScrollOffset, rect.Size);
+    }
     private Point Origin()
     {
-        var rect = _inner?.CursorRectangle ?? default;
-        var origin = TextViewVisual.TranslatePoint(rect.TopLeft, _area.TextView) ?? rect.TopLeft;
+        var rect = ViewportCaretRectangle();
+        var origin = rect.TopLeft;
         // At a wrapped line end, start composition on the following line.
         return _area.TextView.Bounds.Width - origin.X < _area.FontSize
             ? new Point(0, origin.Y + Math.Max(rect.Height, _area.FontSize)) : origin;
@@ -107,11 +115,12 @@ internal sealed class ImeComposition : TextInputMethodClient
     {
         get
         {
-            var original = _inner?.CursorRectangle ?? default;
-            if (!IsComposing) return original;
+            var original = ViewportCaretRectangle();
+            var point = IsComposing ? Origin() : original.TopLeft;
+            var origin = _area.TextView.TranslatePoint(point, TextViewVisual) ?? point;
+            if (!IsComposing) return new Rect(origin, original.Size);
             using var layout = Layout();
             var cursor = layout.HitTestTextPosition(_cursor);
-            var origin = _area.TextView.TranslatePoint(Origin(), TextViewVisual) ?? original.TopLeft;
             return new Rect(origin.X + cursor.X, origin.Y + cursor.Y, 1, cursor.Height);
         }
     }

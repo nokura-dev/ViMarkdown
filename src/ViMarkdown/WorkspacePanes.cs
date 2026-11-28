@@ -128,7 +128,7 @@ public sealed partial class MainWindow
                 return row;
             });
         }
-        var actionRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Margin = new Thickness(10, 5), MinHeight = 28 };
+        var actionRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), Margin = new Thickness(10, 5), MinHeight = 28 };
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         actionRow.Children.Add(actions);
         if (!notes)
@@ -154,6 +154,7 @@ public sealed partial class MainWindow
             };
             Avalonia.Automation.AutomationProperties.SetName(sort, "ページの表示順");
             ToolTip.SetTip(sort, "ページの表示順");
+            _updatePageSortSelection = () => sort.SelectedIndex = (int)_pageSortOrder;
             sort.SelectionChanged += (_, _) =>
             {
                 if (sort.SelectedIndex < 0 || sort.SelectedIndex == (int)_pageSortOrder) return;
@@ -166,6 +167,13 @@ public sealed partial class MainWindow
         }
         var menuActions = BuildWorkspaceActions(notes, actions);
         AddWorkspaceContextMenu(list, notes, menuActions);
+        var toggle = ToolbarButtons.Create("collapse", "", "");
+        toggle.Width = toggle.Height = toggle.MinWidth = toggle.MinHeight = 28 * .8;
+        toggle.Padding = new Thickness(4 * .8);
+        toggle.Margin = new Thickness(6, 0, 0, 0);
+        toggle.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(toggle, 2); actionRow.Children.Add(toggle);
+        toggle.Click += (_, _) => ToggleWorkspacePane(notes);
         var header = new Border
         {
             Background = WorkspaceColors.Chrome,
@@ -174,6 +182,24 @@ public sealed partial class MainWindow
             Child = actionRow
         };
         DockPanel.SetDock(header, Dock.Top); panel.Children.Add(header);
-        panel.Children.Add(WithPaneFocus(list, notes ? 1 : 2)); return panel;
+        var body = WithPaneFocus(list, notes ? 1 : 2);
+        panel.Children.Add(body);
+        _updatePanePresentation[notes] = collapsed =>
+        {
+            body.IsVisible = !collapsed;
+            foreach (var child in actionRow.Children)
+                if (child != toggle) child.IsVisible = !collapsed;
+            actionRow.Margin = collapsed ? new Thickness(4, 5) : new Thickness(10, 5);
+            toggle.Margin = collapsed ? new Thickness(0) : new Thickness(6, 0, 0, 0);
+            var icon = ToolbarButtons.CreateIcon(collapsed ? "expand" : "collapse");
+            icon.Width = icon.Height = 16 * .8;
+            toggle.Content = icon;
+            var name = (notes ? "ノート一覧を" : "ページ一覧を") + (collapsed ? "開く" : "閉じる");
+            Avalonia.Automation.AutomationProperties.SetName(toggle, name);
+            var modifier = OperatingSystem.IsMacOS() ? "Ctrl / ⌘" : "Ctrl";
+            ToolTip.SetTip(toggle, name + $" ({modifier}+{(notes ? 1 : 2)})");
+        };
+        _updatePanePresentation[notes](false);
+        return panel;
     }
 }

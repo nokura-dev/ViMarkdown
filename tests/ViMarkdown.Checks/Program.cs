@@ -44,6 +44,7 @@ static void RunChecks(string[] args)
     Run(nameof(WorkspaceSearchChecks), () => WorkspaceSearchChecks.Run(Check, RenderPath("--render-search")));
     Run(nameof(WorkspaceShortcutChecks), () => WorkspaceShortcutChecks.Run(Check));
     Run(nameof(WorkspaceMenuChecks), () => WorkspaceMenuChecks.Run(Check));
+    Run(nameof(DetachedEditorChecks), () => DetachedEditorChecks.Run(Check));
     Run(nameof(PageMoveChecks), () => PageMoveChecks.Run(Check));
     Run(nameof(WindowPlacementChecks), () => WindowPlacementChecks.Run(Check));
     Run(nameof(WorkspacePaneChecks), () => WorkspacePaneChecks.Run(Check));
