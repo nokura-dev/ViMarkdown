@@ -1,9 +1,0 @@
-Version: 1.2.0
-Runtime: osx-arm64
-Source commit: bb61afd3cb49887e041167d0736006eeaf4e92ef
-Source: https://github.com/nokura-dev/ViMarkdown/tree/bb61afd3cb49887e041167d0736006eeaf4e92ef
-Build date: 2026-11-28 (Asia/Tokyo)
-D2: v0.9.0
-Tests: --all --d2; 35 suites, 2704 checks passed
-Validation: ZIP integrity, shared packaged and embedded README, bundled D2/fonts/licenses; macOS ad-hoc signature verified
-Manual installation and UI operation: not verified for these packages

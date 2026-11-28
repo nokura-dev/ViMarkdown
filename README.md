@@ -44,14 +44,16 @@
 
 GitHubでの配布先は `https://github.com/nokura-dev/ViMarkdown` です。各GitブランチでビルドしたZIPを、そのブランチの `macos/`・`windows/` 直下へ配置します。各パッケージの検証状況は[公開パッケージの検証状況](#公開パッケージの検証状況)を参照してください。GitHub上で対象のZIPを開き、ダウンロードして展開してください。
 
-このmainブランチの正式版は **1.2.0** です。次期版の開発は[developブランチ](https://github.com/nokura-dev/ViMarkdown/tree/develop)で行います。
+このdevelopブランチは次期版 **1.3.0-dev.1** の開発準備段階です。ダイアグラム編集機能は仕様整理済みで、実装はまだ開始していません。正式版1.2.0は[mainブランチ](https://github.com/nokura-dev/ViMarkdown/tree/main)から取得できます。
+
+1.3.0-dev.1の配布パッケージは未作成です。以下はmainの正式版1.2.0へのリンクです。
 
 | 正式版の対象 | ダウンロード |
 |---|---|
-| Apple Silicon搭載Mac | [ViMarkdown-1.2.0-osx-arm64.zip](macos/ViMarkdown-1.2.0-osx-arm64.zip) |
-| Windows x64 | [ViMarkdown-1.2.0-win-x64.zip](windows/ViMarkdown-1.2.0-win-x64.zip) |
+| Apple Silicon搭載Mac | [ViMarkdown-1.2.0-osx-arm64.zip](https://github.com/nokura-dev/ViMarkdown/raw/refs/heads/main/macos/ViMarkdown-1.2.0-osx-arm64.zip) |
+| Windows x64 | [ViMarkdown-1.2.0-win-x64.zip](https://github.com/nokura-dev/ViMarkdown/raw/refs/heads/main/windows/ViMarkdown-1.2.0-win-x64.zip) |
 
-各OSフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。このmainブランチには正式版のZIPを配置します。開発版のZIPはdevelopブランチで管理します。
+各OSフォルダのSHA256SUMSとBUILD-INFO.txtに、チェックサムとビルド元を記録します。正式版のZIPはmainブランチで保持します。developにはこのブランチでビルドした開発版のみ配置します。現在の1.3.0-dev.1ではZIPを作成・掲載していません。
 
 **macOS:** ZIPを展開し、`ViMarkdown.app` をApplicationsフォルダへコピーして起動します。
 
@@ -68,7 +70,7 @@ dotnet restore src/ViMarkdown --packages .nuget/packages
 dotnet run --project src/ViMarkdown --no-restore
 ```
 
-Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。このブランチのVersionは1.2.0です。D2は起動前に対象OS用CLIを準備してください。
+Windows・macOS共通のコマンドです。初回の復元にはNuGetへの接続が必要です。このブランチのVersionは1.3.0-dev.1です。D2は起動前に対象OS用CLIを準備してください。
 
 ## 最初のページを書く
 
@@ -644,7 +646,7 @@ ViMarkdown/                      # 公開用リポジトリのルート
 
 ### 公開パッケージの検証状況
 
-2026年11月28日のmain掲載対象は、正式版1.2.0のmacOS ARM64・Windows x64自己完結型パッケージです。リリース前に `--all --d2` で全35スイート・2,704チェックの成功を確認しました。
+2026年11月28日にmainへ掲載した対象は、正式版1.2.0のmacOS ARM64・Windows x64自己完結型パッケージです。リリース前に `--all --d2` で全35スイート・2,704チェックの成功を確認しました。
 
 | 対象 | パッケージ | 起動・導入の確認 |
 |---|---|---|
@@ -653,7 +655,7 @@ ViMarkdown/                      # 公開用リポジトリのルート
 
 1.2.0では検索一致箇所のハイライト、ステータスバーでの検索・コマンド入力、ノート・ページ一覧の折りたたみ、選択本文の形式変換、IME表示位置と最小ウィンドウ高さの修正に加え、Markdown編集履歴（無操作180秒・手動保存などで追記、起動時に7日経過分を削除）、本文の1秒自動保存、DB保存場所の切替、ショートカット一覧とアプリ情報画面、macOSのCmd操作、xlsx表の罫線・タイトル行の配置を追加・調整しています。従来機能としてページの別ウィンドウ編集、xlsx出力、mdファイルと参照画像からのページ作成、Markdown出力でのD2原文保持、選択フォルダ直下への出力とノート名付きファイル名・重複回避・ページ別エラーレポートを追加しています。従来のD2図の表示・docx出力、初回起動時のREADMEとMarkdown記法サンプル、タイムラインの「昨日」、更新日時の相対表記、画像・D2図の一時リサイズとコピー、貼り付け画像の長辺最大2560pxへの縮小、スライドショー、ごみ箱からの即時完全削除も含みます。既存のMermaidフェンスは通常のコードとして保持し、自動変換しません。
 
-今回のソースはmacOS上のヘッドレス検証で、実D2 CLIを含む全35スイート・2,704チェックに成功しました。NuGet脆弱性情報の取得警告（NU1900）と既存のAvalonia内部API使用警告（AVA3001）が出ています。開発版のWindows動作は利用者から確認を受けていますが、今回のZIPそれぞれの実機インストール・画面操作を網羅確認したものではありません。
+正式版1.2.0のソースはmacOS上のヘッドレス検証で、実D2 CLIを含む全35スイート・2,704チェックに成功しました。NuGet脆弱性情報の取得警告（NU1900）と既存のAvalonia内部API使用警告（AVA3001）が出ています。開発版のWindows動作は利用者から確認を受けていますが、今回のZIPそれぞれの実機インストール・画面操作を網羅確認したものではありません。
 
 ZIPの整合性・同梱ファイル・チェックサムとmacOSのアドホック署名を掲載前に確認します。Developer ID署名・公証とWindowsコード署名は未実施です。旧正式版1.0.1のZIPはローカルと過去のGit履歴で保持します。
 
