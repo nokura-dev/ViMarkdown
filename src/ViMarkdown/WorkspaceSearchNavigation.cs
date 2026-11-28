@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         _editor.Select(offset, 0);
         _highlightKeyword = keyword;
         _workspaceSearchRanges = WorkspaceSearch.Matches(_pageContent.Text, keyword);
-        _rich.SearchRanges = _workspaceSearchRanges;
+        UpdateSearchHighlights();
         Refresh();
         // Keep the exact source offset even when matching Markdown delimiters.
         _caret = offset; _rich.Caret = offset;
@@ -109,8 +109,6 @@ public sealed partial class MainWindow
     {
         _highlightKeyword = "";
         _workspaceSearchRanges = [];
-        _rich.SearchRanges = [];
-        _rich.InvalidateVisual();
-        _editor.TextArea.TextView.Redraw();
+        UpdateSearchHighlights();
     }
 }

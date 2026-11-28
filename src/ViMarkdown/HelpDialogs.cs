@@ -81,6 +81,8 @@ internal static class HelpDialogs
                 ("ページ名変更", "F2"), ("ノート名変更", mod + "+F2"),
                 ("ページ内検索", mod + "+F"), ("ノート内検索", mod + "+Shift+F"),
                 ("前／次のペインへ移動", mod + "+Shift+← / →"),
+                ("ノート一覧を閉じる／開く", mod + "+1"),
+                ("ページ一覧を閉じる／開く", mod + "+2"),
                 ("別ウィンドウを閉じる", mod + "+W"),
                 ("一覧の項目を選択", "↑ / ↓"), ("ページの選択範囲を拡張", "Shift+↑ / ↓"),
                 ("一覧のページ／ノートを削除", "Delete"),
@@ -101,17 +103,22 @@ internal static class HelpDialogs
         var reference = reader.ReadToEnd();
         var start = reference.IndexOf("### カーソル移動", StringComparison.Ordinal);
         var end = reference.IndexOf("### マウス・ワークスペース", start, StringComparison.Ordinal);
-        foreach (var line in reference[start..end].Split('\n'))
+        var lines = reference[start..end].Split('\n');
+        for (var index = 0; index < lines.Length; index++)
         {
+            var line = lines[index].Trim();
             if (line.StartsWith("### "))
             {
                 var heading = Label(line[4..], 16); heading.FontWeight = FontWeight.SemiBold;
                 heading.Margin = new Thickness(0, 10, 0, 4); vim.Children.Add(heading);
             }
-            else if (line.StartsWith('|') && !line.StartsWith("|---") &&
-                !line.StartsWith("| キー") && !line.StartsWith("| 対象"))
+            else if (line.StartsWith('|'))
             {
-                var cells = line.Trim().Trim('|').Split('|');
+                // Markdown headers and delimiters belong to the table syntax,
+                // not to the explanatory text or shortcut rows.
+                if (IsTableSeparator(line) ||
+                    (index + 1 < lines.Length && IsTableSeparator(lines[index + 1]))) continue;
+                var cells = line.Trim('|').Split('|');
                 if (cells.Length == 2) AddRow(vim, cells[1].Trim(), cells[0].Trim().Replace("`` ` ``", "バッククォート").Replace("`", ""));
             }
             else if (!string.IsNullOrWhiteSpace(line))
@@ -119,6 +126,16 @@ internal static class HelpDialogs
                     Foreground = WorkspaceColors.Muted, Margin = new Thickness(0, 4, 0, 4) });
         }
         await dialog.ShowDialog(owner);
+    }
+
+    private static bool IsTableSeparator(string line)
+    {
+        var cells = line.Trim().Trim('|').Split('|');
+        return cells.Length >= 2 && cells.All(cell =>
+        {
+            var delimiter = cell.Trim().Trim(':');
+            return delimiter.Length >= 3 && delimiter.All(c => c == '-');
+        });
     }
 
     private static ScrollViewer Scroll(Control content) => new()
@@ -142,7 +159,7 @@ internal static class HelpDialogs
 
     public static async Task ShowAbout(Window owner)
     {
-        var dialog = Create("このアプリについて", owner, 340, 300);
+        var dialog = Create("このアプリについて", owner, 420, 300);
         dialog.MaxHeight = owner.Screens.ScreenFromWindow(owner)?.WorkingArea.Height / owner.RenderScaling ?? 600;
         dialog.SizeToContent = SizeToContent.Height;
         dialog.Height = double.NaN;
@@ -170,11 +187,17 @@ internal static class HelpDialogs
         content.Children.Add(heading);
         content.Children.Add(Label("Vim操作に対応したMarkdownエディター"));
         content.Children.Add(Label("作者: nokura-dev　／　ライセンス: MIT"));
-        content.Children.Add(Label("掲載先: GitHub — nokura-dev/ViMarkdown"));
-        var link = new Button { Content = "GitHubの掲載先を開く", HorizontalAlignment = HorizontalAlignment.Left };
-        link.Click += async (_, _) => await dialog.Launcher.LaunchUriAsync(new Uri("https://github.com/nokura-dev/ViMarkdown"));
-        content.Children.Add(link);
-        content.Children.Add(Label("https://github.com/nokura-dev/ViMarkdown"));
+        var publication = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        publication.Children.Add(Label("掲載先:"));
+        var link = new HyperlinkButton
+        {
+            Content = "https://github.com/nokura-dev/ViMarkdown/",
+            NavigateUri = new Uri("https://github.com/nokura-dev/ViMarkdown/"),
+            FontSize = 14, Padding = new Thickness(0), MinHeight = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        publication.Children.Add(link);
+        content.Children.Add(publication);
         dialog.Content = new Border
         {
             BorderBrush = WorkspaceColors.Divider, BorderThickness = new Thickness(1),

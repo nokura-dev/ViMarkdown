@@ -37,9 +37,19 @@ public sealed partial class MainWindow
         var storage = new MenuItem { Header = "データ保存場所の切替" };
         storage.Click += async (_, _) => await SwitchWorkspaceAsync();
         var about = new MenuItem { Header = "このアプリについて" };
-        var menu = new ContextMenu { ItemsSource = new[] { shortcuts, storage, about } };
-        menuButton.ContextMenu = menu;
-        menuButton.Click += (_, _) => menu.Open(menuButton);
+        var menu = new MenuFlyout
+        {
+            ItemsSource = new[] { shortcuts, storage, about },
+            // Let the button handle its own toggle without light-dismiss
+            // closing the menu before the click handler observes IsOpen.
+            OverlayInputPassThroughElement = menuButton,
+            Placement = PlacementMode.BottomEdgeAlignedLeft
+        };
+        menuButton.Click += (_, _) =>
+        {
+            if (menu.IsOpen) menu.Hide();
+            else menu.ShowAt(menuButton);
+        };
         shortcuts.Click += async (_, _) =>
         {
             if (!OwnedWindows.Any(w => w.IsVisible)) await HelpDialogs.ShowShortcuts(this);

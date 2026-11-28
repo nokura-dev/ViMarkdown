@@ -85,7 +85,7 @@ public sealed partial class MainWindow
         if (IsPageDetached && _detachedPageNotice?.IsKeyboardFocusWithin == true &&
             WorkspaceModifiers(e.KeyModifiers) == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key is Key.Left or Key.Right)
         {
-            if (e.Key == Key.Left) FocusPaneList(_pages);
+            if (e.Key == Key.Left) FocusPane(_pagesCollapsed ? (_notesCollapsed ? 0 : 1) : 2);
             else if (_searchResultsPane.IsVisible) FocusPaneList(_searchResults);
             e.Handled = true;
             return true;
@@ -103,6 +103,7 @@ public sealed partial class MainWindow
                 pane = owner.Key;
             }
             var target = pane + (e.Key == Key.Left ? -1 : 1);
+            while (IsWorkspacePaneCollapsed(target)) target += e.Key == Key.Left ? -1 : 1;
             if (target >= 0 && target <= (_searchResultsPane.IsVisible ? 4 : 3))
             {
                 CancelPendingCommand();

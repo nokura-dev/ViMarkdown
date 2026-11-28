@@ -14,14 +14,14 @@ internal static class WindowPlacementChecks
         {
             using (var session = new EditorSession(path))
             {
-                session.Window.Width = 1000;
+                session.Window.Width = 1200;
                 session.Window.Height = 600;
                 session.Window.Position = new PixelPoint(40, 50);
                 Dispatcher.UIThread.RunJobs();
             }
             using (var session = new EditorSession(path))
             {
-                check(session.Window.Width == 1000 && session.Window.Height == 600, "再起動時にサイズを復元する");
+                check(session.Window.Width == 1200 && session.Window.Height == 600, "再起動時にサイズを復元する");
                 check(session.Window.Position == new PixelPoint(40, 50), "再起動時に位置を復元する");
                 session.Window.WindowState = WindowState.Maximized;
             }

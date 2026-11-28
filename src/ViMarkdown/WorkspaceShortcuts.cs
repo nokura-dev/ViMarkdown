@@ -17,6 +17,13 @@ public sealed partial class MainWindow
     private async void HandleWorkspaceShortcut(object? sender, KeyEventArgs e)
     {
         if (e.Handled) return;
+        if (!IsDetachedEditor && WorkspaceModifiers(e.KeyModifiers) == KeyModifiers.Control && e.Key is Key.D1 or Key.D2)
+        {
+            e.Handled = true;
+            CancelPendingCommand();
+            ToggleWorkspacePane(e.Key == Key.D1);
+            return;
+        }
         var modifiers = WorkspaceModifiers(e.KeyModifiers);
         if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _searchResults.IsKeyboardFocusWithin)
         {

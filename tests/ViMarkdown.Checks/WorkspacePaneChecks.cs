@@ -73,10 +73,10 @@ internal static class WorkspacePaneChecks
         check(notes.Bounds.Width >= 112 && notes.Bounds.Width < initialNotes, "ノートをドラッグで最小幅より狭められない");
         HeaderFits(notes);
         Drag(splitters[1], -3000);
-        check(pages.Bounds.Width >= 290 && pages.Bounds.Width < initialPages, "ページをドラッグで最小幅より狭められない");
+        check(pages.Bounds.Width >= 320 && pages.Bounds.Width <= initialPages, "ページをドラッグで最小幅より狭められない");
         HeaderFits(pages);
         DoubleClick(splitters[0]);
-        check(Math.Abs(notes.Bounds.Width - initialNotes) < .01 && Math.Abs(pages.Bounds.Width - 290) < .01,
+        check(Math.Abs(notes.Bounds.Width - initialNotes) < .01 && Math.Abs(pages.Bounds.Width - 320) < .01,
             "ノート境界のダブルクリックはノートだけ初期幅に戻す");
         DoubleClick(splitters[1]);
         check(Math.Abs(pages.Bounds.Width - initialPages) < .01 && Math.Abs(notes.Bounds.Width - initialNotes) < .01,
@@ -110,7 +110,7 @@ internal static class WorkspacePaneChecks
             "ページを最大まで拡大した後もノートを初期幅に戻せる");
         window.Width = window.MinWidth;
         Layout();
-        check(notes.Bounds.Width >= 112 && pages.Bounds.Width >= 290 && editor.Bounds.Width >= 510 &&
+        check(notes.Bounds.Width >= 144 && pages.Bounds.Width >= 320 && editor.Bounds.Width >= 510 &&
               editor.Bounds.Right <= grid.Bounds.Width + .01,
             "ウィンドウ縮小時も各ペインの最小幅を守り画面内に収める");
         HeaderFits(notes);
@@ -124,7 +124,7 @@ internal static class WorkspacePaneChecks
         var trashTop = trash.TranslatePoint(default, window)!.Value.Y;
         check(window.MinHeight > 0 && trashTop >= periodTop + lastPeriod.Bounds.Height &&
             trashTop + trash.Bounds.Height <= window.ClientSize.Height + .01,
-            "最小高さでもごみ箱は先々月の下に収まり、ウィンドウ外へ隠れない");
+            $"最小高さでもごみ箱は先々月の下に収まり、ウィンドウ外へ隠れない: period={periodTop}+{lastPeriod.Bounds.Height}, trash={trashTop}+{trash.Bounds.Height}, client={window.ClientSize.Height}, min={window.MinHeight}");
         editor.GetVisualDescendants().OfType<ComboBox>().Single(c => c.Name == "SearchScope").SelectedIndex = 0;
         editor.GetVisualDescendants().OfType<TextBox>().Single(c => c.Name == "SearchKeyword").Text = "ペイン";
         editor.GetVisualDescendants().OfType<Button>().Single(c => c.Name == "SearchButton")

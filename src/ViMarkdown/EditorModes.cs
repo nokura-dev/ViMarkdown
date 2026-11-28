@@ -124,7 +124,8 @@ public sealed partial class MainWindow
         if (IsPageDetached) { _activateDetachedEditor?.Focus(); return; }
         if (_activePageId is null) { _notes.Focus(); return; }
         // TextEditor is a focusable wrapper; only TextArea accepts text input.
-        if (_mode == EditorMode.Insert) _editor.TextArea.Focus();
+        if (_commandPrompt is not null) _commandInput.Focus();
+        else if (_mode == EditorMode.Insert) _editor.TextArea.Focus();
         else _rich.Focus();
     }
 }

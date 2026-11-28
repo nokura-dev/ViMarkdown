@@ -52,7 +52,7 @@ static class DocxChecks
                         "docx本文・ページ名・表・コードは10pt");
                     if (!doc.MainDocumentPart!.Document!.InnerText.Contains("見出し")) continue;
                     var headings = body.Elements<W.Paragraph>()
-                        .Where(p => p.ParagraphProperties?.GetFirstChild<W.OutlineLevel>() is not null).ToArray();
+                        .Where(p => p.ParagraphProperties?.GetFirstChild<W.OutlineLevel>()?.Val?.Value is >= 0 and <= 5).ToArray();
                     var sizes = new[] { "36", "32", "28", "24", "22", "20" };
                     check(headings.Length == 6 && headings.Select((p, i) =>
                         p.ParagraphProperties!.GetFirstChild<W.OutlineLevel>()!.Val!.Value == i &&

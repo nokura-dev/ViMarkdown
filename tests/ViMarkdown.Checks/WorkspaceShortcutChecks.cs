@@ -14,7 +14,7 @@ internal static class WorkspaceShortcutChecks
         using var session = new EditorSession();
         var window = session.Window;
         void Save() => typeof(ViMarkdown.MainWindow).GetMethod("SaveCurrent",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window, null);
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window, new object[] { true });
         var existingTitle = window.Title;
         session.Editor.Document.Text = "2026/11/20 10:00\n# 既存ページは変更しない";
         Save();

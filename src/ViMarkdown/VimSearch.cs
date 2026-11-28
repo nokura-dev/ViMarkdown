@@ -9,9 +9,66 @@ public sealed partial class MainWindow
     private int _searchOrigin;
     private string _lastSubstitute = "";
 
+    private bool _vimSearchHighlightVisible = true;
+    private string? _highlightedVimPattern;
+    private string? _highlightedVimText;
+    private IReadOnlyList<(int Start, int End)> _vimSearchRanges = [];
+    private IReadOnlyList<(int Start, int End)> _displaySearchRanges = [];
+    private IReadOnlyList<(int Start, int End)>? _displayedVimRanges;
+    private IReadOnlyList<(int Start, int End)>? _displayedWorkspaceRanges;
+
+    private void UpdateSearchHighlights()
+    {
+        var text = _pageContent.Text;
+        if (_vimSearchHighlightVisible && _mode != EditorMode.Insert && (_highlightedVimPattern != _searchPattern || _highlightedVimText != text))
+        {
+            _highlightedVimPattern = _searchPattern;
+            _highlightedVimText = text;
+            _vimSearchRanges = [];
+            if (_searchPattern.Length > 0)
+            {
+                try
+                {
+                    _vimSearchRanges = Regex.Matches(text, VimRegex.Pattern(_searchPattern),
+                            RegexOptions.Multiline, TimeSpan.FromMilliseconds(250))
+                        .Cast<Match>().Where(m => m.Length > 0)
+                        .Select(m => (m.Index, m.Index + m.Length)).ToArray();
+                }
+                catch (ArgumentException) { /* Invalid patterns have no highlight. FindMatch reports the error. */ }
+                catch (RegexMatchTimeoutException) { /* Keep editing responsive for expensive patterns. */ }
+            }
+        }
+        IReadOnlyList<(int Start, int End)> visibleVimRanges = !_vimSearchHighlightVisible || _mode == EditorMode.Insert
+            ? Array.Empty<(int Start, int End)>() : _vimSearchRanges;
+        var changed = !ReferenceEquals(_displayedVimRanges, visibleVimRanges) ||
+            !ReferenceEquals(_displayedWorkspaceRanges, _workspaceSearchRanges);
+        if (changed)
+        {
+            _displayedVimRanges = visibleVimRanges;
+            _displayedWorkspaceRanges = _workspaceSearchRanges;
+            _displaySearchRanges = _workspaceSearchRanges.Count == 0 ? visibleVimRanges :
+                visibleVimRanges.Count == 0 ? _workspaceSearchRanges :
+                _workspaceSearchRanges.Concat(visibleVimRanges).Distinct().OrderBy(r => r.Start).ToArray();
+        }
+        // ClearPage can reset the preview ranges even when both cached lists are unchanged.
+        _rich.SearchRanges = _displaySearchRanges;
+        if (changed)
+        {
+            _rich.InvalidateVisual();
+            _editor.TextArea.TextView.Redraw();
+        }
+    }
+
+    private void HideVimSearchHighlights()
+    {
+        _vimSearchHighlightVisible = false;
+        UpdateSearchHighlights();
+    }
+
     private void FindMatch(bool backward, int count)
     {
         if (_searchPattern.Length == 0) return;
+        _vimSearchHighlightVisible = true;
         try
         {
             var matches = Regex.Matches(_pageContent.Text, VimRegex.Pattern(_searchPattern), RegexOptions.Multiline, TimeSpan.FromMilliseconds(250)).Cast<Match>().ToArray();
@@ -25,6 +82,7 @@ public sealed partial class MainWindow
     private void ExecuteEx(string command)
     {
         command = command.Trim();
+        if (command.Length > 0) HideVimSearchHighlights();
         if (command is "w" or "write") { SaveCurrent(); return; }
         if (command is "q" or "quit" or "q!") { Close(); return; }
         if (command is "wq" or "x") { if (SaveCurrent()) Close(); return; }

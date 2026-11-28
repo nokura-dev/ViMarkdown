@@ -1,3 +1,5 @@
+using Avalonia.Controls;
+using Avalonia.VisualTree;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -232,8 +234,126 @@ internal static class VimCommandChecks
         session.Reset("abcd\nefgh"); session.Key(PhysicalKey.V, RawInputModifiers.Control); session.Keys("jlI"); window.KeyTextInput("X"); session.Key(PhysicalKey.Escape); check(editor.Text == "Xabcd\nXefgh", "矩形Iで各行の選択先頭へ挿入");
         session.Reset("abcd\nefgh"); session.Key(PhysicalKey.V, RawInputModifiers.Control); session.Keys("jlA"); window.KeyTextInput("X"); session.Key(PhysicalKey.Escape); check(editor.Text == "abXcd\nefXgh", "矩形Aで各行の選択末尾へ追記");
         session.Reset("abcd"); session.Keys("vl"); session.Key(PhysicalKey.Escape); session.Keys("gvd"); check(editor.Text == "cd", "gvで前回選択を復元");
+        session.Reset("表示確認");
+        foreach (var (keyCode, reportedSymbol, nativeSymbol) in new[]
+        {
+            (Key.OemQuotes, "'", ":"), (Key.OemSemicolon, ";", ":"),
+            (Key.OemQuestion, "/", "?"), (Key.OemQuestion, "?", "/")
+        })
+        {
+            typeof(MainWindow).GetMethod("HandleVimKey", System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance)!.Invoke(window, new object?[]
+                { new KeyEventArgs { Key = keyCode, KeySymbol = reportedSymbol }, nativeSymbol });
+            window.UpdateLayout();
+            var input = window.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "VimCommandInput");
+            check(input.IsEffectivelyVisible && input.Bounds.Width > 100 && input.Bounds.Height > 0 &&
+                input.IsKeyboardFocusWithin, "JISの開始記号を押した直後、文字入力なしで入力欄が実寸とフォーカスを持つ");
+            session.Key(PhysicalKey.Escape);
+        }
+        session.Keys(":");
+        window.UpdateLayout();
+        var exInput = window.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "VimCommandInput");
+        check(exInput.IsEffectivelyVisible && exInput.Bounds.Width > 100 && exInput.Bounds.Height > 0,
+            ":単独でステータスバーのコマンド入力欄を表示する");
+        session.Key(PhysicalKey.Escape);
+        session.Reset("先頭 日本語 末尾");
+        session.Keys("/");
+        var promptInput = window.GetVisualDescendants().OfType<TextBox>().Single(t => t.Name == "VimCommandInput");
+        check(promptInput.IsVisible && promptInput.IsKeyboardFocusWithin, "検索入力はネイティブ文字入力を受けるTextBoxにフォーカスする");
+        window.KeyTextInput("日本語");
+        session.Key(PhysicalKey.Enter);
+        check(rich.Caret == 3 && !promptInput.IsVisible && rich.IsKeyboardFocusWithin, "日本語検索の確定後は本文にフォーカスを戻す");
+        session.Keys(":");
+        window.KeyTextInput("2");
+        session.Key(PhysicalKey.Backspace);
+        var normalToolbar = window.GetVisualDescendants().OfType<ScrollViewer>().Single(v => v.Name == "EditorToolbarScroll");
+        var normalStatus = window.GetVisualDescendants().OfType<Grid>().Single(v => v.Name == "EditorStatusDisplay");
+        check(!promptInput.IsVisible && normalStatus.IsVisible && normalToolbar.IsVisible && rich.IsKeyboardFocusWithin,
+            "Backspaceで最後のコマンド文字を削除すると通常のステータスバーへ戻る");
+        window.UpdateLayout();
+        var statusHeight = normalStatus.Bounds.Height;
+        session.Keys(":");
+        window.UpdateLayout();
+        check(!normalStatus.IsVisible && normalToolbar.IsVisible && promptInput.IsVisible,
+            "コマンド入力中はステータス表示だけを隠し、上部ツールバーを維持する");
+        var commandRow = window.GetVisualDescendants().OfType<Border>().Single(v => v.Name == "VimCommandInputRow");
+        check(commandRow.Parent == normalStatus.Parent, "コマンド欄は通常ステータス表示と同じ領域を共有する");
+        check(Math.Abs(commandRow.Bounds.Height - statusHeight) < .01 && promptInput.BorderThickness == new Avalonia.Thickness(0),
+            "コマンド欄はステータスバーの高さを維持し、入力枠を表示しない");
+        session.Key(PhysicalKey.Backspace);
+        check(normalStatus.IsVisible && normalToolbar.IsVisible && !promptInput.IsVisible, "開始記号だけの状態でもBackspaceでステータスバーへ戻る");
+        session.Keys(":");
+        window.KeyTextInput("1");
+        session.Key(PhysicalKey.Escape);
+        check(!promptInput.IsVisible && normalStatus.IsVisible && normalToolbar.IsVisible && rich.IsKeyboardFocusWithin && editor.Text == "先頭 日本語 末尾", "Ex入力の削除・取消は本文を変更しない");
+        session.Reset("one two one");
+        session.Prompt("/", "one");
+        check(rich.SearchRanges.SequenceEqual(new[] { (0, 3), (8, 11) }),
+            "検索の全一致を常時ハイライトし、移動先以外の一致も含める");
+        session.Keys("n");
+        check(rich.SearchRanges.Count == 2, "nで移動しても全一致のハイライトを維持する");
+        session.Key(PhysicalKey.Escape);
+        check(rich.SearchRanges.Count == 0, "ノーマルモードのEscで検索ハイライトを消す");
+        session.Keys("l");
+        check(rich.SearchRanges.Count == 0, "移動や再描画だけではハイライトを再表示しない");
+        session.Keys("n");
+        check(rich.SearchRanges.Count == 2, "Esc後も検索パターンを保持しnで再表示できる");
+        session.Prompt(":", "w");
+        check(rich.SearchRanges.Count == 0, "明示的な保存でハイライトを消す");
+        session.Keys("N");
+        check(rich.SearchRanges.Count == 2, "保存後もNでハイライトを再表示する");
+        session.Prompt(":", "1");
+        check(rich.SearchRanges.Count == 0, "Exの行移動でもハイライトを消す");
+        session.Keys("n");
+        session.Prompt(":", "s/one/one/");
+        check(rich.SearchRanges.Count == 0, "置換のパターン更新や本文更新でハイライトが復活しない");
+        session.Prompt("/", "one");
+        typeof(MainWindow).GetMethod("SaveCurrent", System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Instance)!.Invoke(window, new object[] { false });
+        check(rich.SearchRanges.Count == 2, "自動保存の経路では検索ハイライトを維持する");
+        session.Keys("i");
+        window.KeyTextInput("one ");
+        check(rich.SearchRanges.Count == 0, "挿入モードではVim検索のハイライトを表示しない");
+        session.Key(PhysicalKey.Escape);
+        check(rich.SearchRanges.Count == 3, "通常モードへ戻ると編集後の本文でハイライトを更新する");
+        session.Keys("v");
+        check(rich.SearchRanges.Count == 3, "ビジュアルモードでも検索のハイライトを維持する");
+        session.Key(PhysicalKey.Escape);
+        session.Keys("u");
+        check(rich.SearchRanges.Count == 2, "Undoでハイライトも元の一致範囲に戻る");
+        session.Prompt("?", "two");
+        check(rich.SearchRanges.Count == 1 && rich.SearchRanges[0] == (4, 7),
+            "後方検索の新しいパターンで古いハイライトを置き換える");
+        session.Prompt("/", "o.e");
+        check(rich.SearchRanges.Count == 2, "正規表現に一致する文字列をハイライトする");
+        session.Prompt("/", "[");
+        check(rich.SearchRanges.Count == 0, "不正な正規表現で古いハイライトを残さない");
+        session.Prompt("/", "missing");
+        check(rich.SearchRanges.Count == 0, "一致なしの検索でハイライトを消す");
+        session.Prompt("/", "^");
+        check(rich.SearchRanges.Count == 0, "ゼロ幅の一致は塗りつぶさない");
         session.Reset("one two one"); session.Prompt("/", "one"); check(rich.Caret == 8, "/で前方検索"); session.Keys("n"); check(rich.Caret == 0, "nで折り返し検索"); session.Keys("N"); check(rich.Caret == 8, "Nで逆方向検索");
         session.Prompt("?", "two"); check(rich.Caret == 4, "?で後方検索");
+        // JIS Shift+: can retain the unshifted/US symbol in Avalonia's key event.
+        // Cocoa's actual * must win without requiring TextInput from the preview.
+        foreach (var nativeKey in new[] { Key.OemQuotes, Key.OemSemicolon, Key.Oem8 })
+        foreach (var reportedSymbol in new string?[] { null, ":", "'", "\"" })
+        {
+            session.Reset("one two one");
+            typeof(MainWindow).GetMethod("HandleVimKey", System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance)!.Invoke(window, new object?[]
+                { new KeyEventArgs { Key = nativeKey, KeySymbol = reportedSymbol, KeyModifiers = KeyModifiers.Shift }, "*" });
+            Dispatcher.UIThread.RunJobs();
+            check(rich.Caret == 8 && editor.Text == "one two one" && rich.SearchRanges.Count == 2, "JISの*はTextInputなしで単語を前方検索し本文を変更しない");
+            session.Keys("n");
+            check(rich.Caret == 0, "JISの*の検索をnで繰り返せる");
+        }
+        session.Reset("one two one", 8);
+        typeof(MainWindow).GetMethod("HandleVimKey", System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Instance)!.Invoke(window, new object?[]
+            { new KeyEventArgs { Key = Key.H, KeySymbol = "h" }, "*" });
+        Dispatcher.UIThread.RunJobs();
+        check(rich.Caret == 7, "別イベントの*が残っていてもhは通常の左移動を行う");
         session.Reset("one two one"); session.Keys("*"); check(rich.Caret == 8, "*でカーソル単語を前方検索"); session.Keys("#"); check(rich.Caret == 0, "#でカーソル単語を後方検索");
         session.Reset("a\n  b\nc"); session.Keys("3J"); check(editor.Text == "a b c", "Jで行結合"); session.Keys("u"); check(editor.Text == "a\n  b\nc", "複数行の結合を1回のUndoで復元");
         session.Reset("a\nb\nc"); session.Keys("2>>"); check(editor.Text == "    a\n    b\nc", "回数指定で字下げ"); session.Keys("<<"); check(editor.Text == "a\n    b\nc", "字下げ解除"); session.Keys("j=="); check(editor.Text == "a\nb\nc", "=で前行に字下げを揃える");
